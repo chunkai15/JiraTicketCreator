@@ -12,6 +12,7 @@ import {
   Button,
   Collapse
 } from 'antd';
+import './responsive.css';
 import {
   FileTextOutlined,
   EyeOutlined,
@@ -271,8 +272,8 @@ function App() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ background: '#fff', padding: '0 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <Title level={2} style={{ margin: 0, lineHeight: '64px' }}>
+      <Header className="responsive-header" style={{ background: '#fff', padding: '0 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Title level={2} className="header-title" style={{ margin: 0, lineHeight: '64px' }}>
           🎯 Jira Ticket Creator Tool
         </Title>
       </Header>
@@ -284,7 +285,14 @@ function App() {
             Enter bug reports, feature requests, or task descriptions and automatically extract structured information.
           </Paragraph>
           
-          <Steps current={currentStep} items={steps} style={{ marginTop: 16 }} />
+          <Steps 
+            current={currentStep} 
+            items={steps} 
+            style={{ marginTop: 16 }}
+            size="small"
+            responsive={false}
+            className="responsive-steps"
+          />
         </Card>
 
         {/* Step 1: Jira Configuration - Collapsible */}

@@ -149,10 +149,10 @@ const CreateSection = ({
           }
           style={{ marginBottom: 24 }}
         >
-          <Row gutter={[24, 16]}>
+          <Row gutter={[24, 16]} className="metadata-row">
             {/* Sprint Selection */}
-            <Col xs={24} sm={12} lg={6}>
-              <div>
+            <Col xs={24} sm={12} md={12} lg={6} xl={6}>
+              <div className="metadata-field">
                 <Text strong style={{ fontSize: '14px', marginBottom: 8, display: 'block' }}>
                   <CalendarOutlined /> Sprint
                 </Text>
@@ -182,8 +182,8 @@ const CreateSection = ({
             </Col>
 
             {/* Fix Version Selection */}
-            <Col xs={24} sm={12} lg={6}>
-              <div>
+            <Col xs={24} sm={12} md={12} lg={6} xl={6}>
+              <div className="metadata-field">
                 <Text strong style={{ fontSize: '14px', marginBottom: 8, display: 'block' }}>
                   <TagOutlined /> Fix Version
                 </Text>
@@ -212,8 +212,8 @@ const CreateSection = ({
             </Col>
 
             {/* Parent (Epic) Selection */}
-            <Col xs={24} sm={12} lg={6}>
-              <div>
+            <Col xs={24} sm={12} md={12} lg={6} xl={6}>
+              <div className="metadata-field">
                 <Text strong style={{ fontSize: '14px', marginBottom: 8, display: 'block' }}>
                   <ApartmentOutlined /> Parent (Epic)
                 </Text>
@@ -247,8 +247,8 @@ const CreateSection = ({
             </Col>
 
             {/* Assignee Selection */}
-            <Col xs={24} sm={12} lg={6}>
-              <div>
+            <Col xs={24} sm={12} md={12} lg={6} xl={6}>
+              <div className="metadata-field">
                 <Text strong style={{ fontSize: '14px', marginBottom: 8, display: 'block' }}>
                   <UserOutlined /> Assignee
                 </Text>
@@ -291,9 +291,9 @@ const CreateSection = ({
             </Space>
           }
         >
-          <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} sm={12}>
-              <Space direction="vertical" size="small">
+          <Row gutter={[16, 16]} align="middle" className="creation-controls">
+            <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+              <Space direction="vertical" size="small" className="ticket-info">
                 <div>
                   <Text strong>Tickets to Create: </Text>
                   <Text type="primary" style={{ fontSize: '16px' }}>
@@ -306,8 +306,8 @@ const CreateSection = ({
               </Space>
             </Col>
             
-            <Col xs={24} sm={12}>
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+              <Space direction="vertical" size="small" style={{ width: '100%' }} className="creation-mode">
                 <div>
                   <Text strong>Creation Mode: </Text>
                   <Switch

@@ -305,8 +305,8 @@ const TextInputSection = ({
           key="guide"
         >
           <div style={{ background: '#fafafa', padding: 12, borderRadius: 6 }}>
-            <Row gutter={[16, 8]}>
-              <Col span={12}>
+            <Row gutter={[16, 8]} className="guide-grid">
+              <Col xs={24} sm={12} md={12} lg={12} xl={12}>
                 <Text strong>Title extraction:</Text>
                 <br />
                 <Text code>Title: Login bug</Text>
@@ -315,7 +315,7 @@ const TextInputSection = ({
                 <br />
                 <Text type="secondary">Or first meaningful line</Text>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12} md={12} lg={12} xl={12}>
                 <Text strong>Steps extraction:</Text>
                 <br />
                 <Text code>Steps:</Text>
@@ -324,14 +324,14 @@ const TextInputSection = ({
                 <br />
                 <Text code>2. Click login</Text>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12} md={12} lg={12} xl={12}>
                 <Text strong>Environment:</Text>
                 <br />
                 <Text code>Environment: iOS 16</Text>
                 <br />
                 <Text code>Device: iPhone 14</Text>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12} md={12} lg={12} xl={12}>
                 <Text strong>Priority/Type:</Text>
                 <br />
                 <Text code>Priority: High</Text>

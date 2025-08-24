@@ -199,6 +199,7 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
         layout="vertical"
         onFinish={handleSave}
         autoComplete="off"
+        className="responsive-form"
       >
         <Form.Item
           label="Jira URL"
