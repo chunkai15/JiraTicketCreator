@@ -39,9 +39,68 @@ npm install
 ## 📝 How to Use
 
 ### Step 1: Jira Configuration
-1. Get your Jira API credentials (URL, email, API token)
-2. Configure connection in the app
-3. Test connection and save configuration
+
+#### Required Fields
+To connect with your Jira instance, you need to provide the following information:
+
+| Field | Description | Example | Required |
+|-------|-------------|---------|----------|
+| **Jira URL** | Your Jira instance URL | `https://your-company.atlassian.net` | ✅ Yes |
+| **Email** | Your Atlassian account email | `your-email@company.com` | ✅ Yes |
+| **API Token** | Personal API token for authentication | `ATATT3xFfGF0...` (72+ characters) | ✅ Yes |
+| **Project Key** | Target project key in uppercase | `MP`, `DEV`, `TEST` | ✅ Yes |
+
+#### 🔐 How to Get Your Jira API Token
+
+1. **Visit Atlassian API Tokens page**:
+   - Go to [https://id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
+   - Log in with your Atlassian account
+
+2. **Create new API token**:
+   - Click **"Create API token"** button
+   - Enter a label (e.g., "Jira Tool", "Ticket Creator")
+   - Click **"Create"**
+
+3. **Copy and save the token**:
+   - **Important**: Copy the token immediately (you won't see it again)
+   - Store it securely - the app will encrypt it automatically
+   - Token format: `ATATT3xFfGF0...` (usually 72+ characters)
+
+#### 🏢 Finding Your Jira URL and Project Key
+
+**Jira URL Format**:
+```
+https://your-company.atlassian.net
+```
+- Replace `your-company` with your actual Atlassian subdomain
+- Always include `https://`
+- Don't add trailing slash
+
+**Project Key**:
+- Found in your Jira project settings
+- Usually 2-5 uppercase letters (e.g., `MP`, `DEV`, `PROJ`)
+- Visible in issue keys like `MP-123`, `DEV-456`
+
+#### ⚙️ Configuration Steps
+
+1. **Open the application** at http://localhost:3000
+2. **Navigate to Jira Configuration section**
+3. **Fill in the required fields**:
+   - Jira URL: Your Atlassian instance URL
+   - Email: Your login email
+   - API Token: The token you created above
+   - Project Key: Target project identifier
+4. **Test the connection** using "Test Connection" button
+5. **Save configuration** - credentials are encrypted locally
+
+#### 🔄 Updating Configuration
+
+To change your configuration:
+1. Click **"Clear"** button to remove saved credentials
+2. Enter new information
+3. Test and save the updated configuration
+
+---
 
 ### Step 2: Input & Parse Text
 1. Enter bug reports, feature requests, or task descriptions
