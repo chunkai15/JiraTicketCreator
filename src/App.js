@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Layout,
   Typography,
@@ -37,6 +37,7 @@ function App() {
   const [textInputs, setTextInputs] = useState(['']); // Array of text inputs
   const [parsedTickets, setParsedTickets] = useState([]); // Parsed ticket data
   const [attachments, setAttachments] = useState({}); // Attachments for each input
+  const [ticketTypes, setTicketTypes] = useState({}); // Ticket types for each input
   const [jiraConfig, setJiraConfig] = useState({
     url: '',
     email: '',
@@ -47,9 +48,27 @@ function App() {
     sprint: ''
   });
   const [createdTickets, setCreatedTickets] = useState([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [configCollapsed, setConfigCollapsed] = useState(true); // Default collapsed
+
+  // Handle beforeunload warning for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (hasUnsavedChanges) {
+        const message = 'You have unsaved changes. Are you sure you want to leave?';
+        event.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
 
   // Load saved Jira configuration on app start
   React.useEffect(() => {
@@ -68,11 +87,13 @@ function App() {
     const newInputs = [...textInputs];
     newInputs[index] = value;
     setTextInputs(newInputs);
+    setHasUnsavedChanges(true);
   }, [textInputs]);
 
   // Add new text input
   const addTextInput = useCallback(() => {
     setTextInputs([...textInputs, '']);
+    setHasUnsavedChanges(true);
   }, [textInputs]);
 
   // Remove text input
@@ -80,8 +101,31 @@ function App() {
     if (textInputs.length > 1) {
       const newInputs = textInputs.filter((_, i) => i !== index);
       setTextInputs(newInputs);
+      // Also remove corresponding ticket type and attachments
+      const newTicketTypes = { ...ticketTypes };
+      delete newTicketTypes[index];
+      setTicketTypes(newTicketTypes);
+      const newAttachments = { ...attachments };
+      delete newAttachments[index];
+      setAttachments(newAttachments);
+      setHasUnsavedChanges(true);
     }
-  }, [textInputs]);
+  }, [textInputs, ticketTypes, attachments]);
+
+  // Handle attachments change
+  const handleAttachmentsChange = useCallback((newAttachments) => {
+    setAttachments(newAttachments);
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // Handle ticket type change
+  const handleTicketTypeChange = useCallback((index, type) => {
+    setTicketTypes(prev => ({
+      ...prev,
+      [index]: type
+    }));
+    setHasUnsavedChanges(true);
+  }, []);
 
   // Parse all text inputs
   const parseAllTexts = useCallback(() => {
@@ -90,12 +134,14 @@ function App() {
         .filter(text => text.trim())
         .map((text, index) => {
           const parsedData = TextParser.parseTicketInfo(text);
+          const selectedTicketType = ticketTypes[index] || 'Bug';
           return {
             ...parsedData,
             id: `ticket-${index}`,
             originalText: text,
             selected: true, // Default selected for bulk operations
-            attachments: attachments[index] || [] // Include attachments
+            attachments: attachments[index] || [], // Include attachments
+            issueType: selectedTicketType // Override with selected ticket type
           };
         })
         .filter(ticket => ticket && ticket.title);
@@ -108,15 +154,18 @@ function App() {
       setParsedTickets(parsed);
       setCurrentStep(1);
       message.success(`Parsed ${parsed.length} ticket(s) successfully!`);
+      // Clear unsaved changes flag after successful parsing
+      setHasUnsavedChanges(false);
     } catch (error) {
       console.error('Parsing error:', error);
       message.error('Error parsing ticket information. Please check your text format.');
     }
-  }, [textInputs, attachments]);
+  }, [textInputs, attachments, ticketTypes]);
 
   // Handle preview table changes
   const handlePreviewChange = useCallback((updatedTickets) => {
     setParsedTickets(updatedTickets);
+    setHasUnsavedChanges(true);
   }, []);
 
   // Handle ticket selection for bulk operations
@@ -131,6 +180,23 @@ function App() {
   // Handle Jira config changes
   const handleJiraConfigChange = useCallback((config) => {
     setJiraConfig(config);
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // Reset unsaved changes (for manual reset if needed)
+  const resetUnsavedChanges = useCallback(() => {
+    setHasUnsavedChanges(false);
+  }, []);
+
+  // Reset all data to initial state
+  const resetAllData = useCallback(() => {
+    setTextInputs(['']);
+    setParsedTickets([]);
+    setAttachments({});
+    setTicketTypes({});
+    setCreatedTickets([]);
+    setCurrentStep(0);
+    setHasUnsavedChanges(false);
   }, []);
 
   // Create tickets in Jira
@@ -187,6 +253,8 @@ function App() {
         setCreatedTickets(results);
         setCurrentStep(2);
         message.success(`🎯 Demo completed! Created ${results.length} mock ticket(s)`);
+        // Clear unsaved changes flag after successful demo creation
+        setHasUnsavedChanges(false);
         
       } else {
         // Real Jira mode
@@ -234,6 +302,8 @@ function App() {
             `🎉 Successfully created ${result.summary.successful} ticket(s)!` +
             (result.summary.failed > 0 ? ` (${result.summary.failed} failed)` : '')
           );
+          // Clear unsaved changes flag after successful creation
+          setHasUnsavedChanges(false);
         } else {
           message.error('❌ All ticket creation attempts failed. Please check your configuration and permissions.');
         }
@@ -275,6 +345,11 @@ function App() {
       <Header className="responsive-header" style={{ background: '#fff', padding: '0 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <Title level={2} className="header-title" style={{ margin: 0, lineHeight: '64px' }}>
           🎯 Jira Ticket Creator Tool
+          {hasUnsavedChanges && (
+            <span style={{ color: '#ff7875', fontSize: '14px', marginLeft: '8px' }}>
+              • Unsaved changes
+            </span>
+          )}
         </Title>
       </Header>
       
@@ -361,7 +436,9 @@ function App() {
             onAddInput={addTextInput}
             onRemoveInput={removeTextInput}
             attachments={attachments}
-            onAttachmentsChange={setAttachments}
+            onAttachmentsChange={handleAttachmentsChange}
+            ticketTypes={ticketTypes}
+            onTicketTypeChange={handleTicketTypeChange}
           />
         </Card>
 
