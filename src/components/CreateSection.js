@@ -167,10 +167,14 @@ const CreateSection = ({
                   size="large"
                   allowClear
                   dropdownStyle={{ minWidth: 300 }}
+                  showSearch
+                  filterOption={(input, option) => {
+                    return option.label && option.label.toLowerCase().includes(input.toLowerCase());
+                  }}
                   loading={metadataLoading}
                 >
                   {projectMetadata.sprints.map(sprint => (
-                    <Option key={sprint.id} value={sprint.id}>
+                    <Option key={sprint.id} value={sprint.id} label={sprint.name}>
                       <Space>
                         <span>{sprint.name}</span>
                         {sprint.isDefault && <Text type="secondary">(Default)</Text>}
@@ -197,10 +201,14 @@ const CreateSection = ({
                   style={{ width: '100%' }}
                   size="large"
                   dropdownStyle={{ minWidth: 300 }}
+                  showSearch
+                  filterOption={(input, option) => {
+                    return option.label && option.label.toLowerCase().includes(input.toLowerCase());
+                  }}
                   loading={metadataLoading}
                 >
                   {projectMetadata.versions.map(version => (
-                    <Option key={version.id} value={version.id}>
+                    <Option key={version.id} value={version.id} label={version.name}>
                       <Space>
                         <span>{version.name}</span>
                         {version.isDefault && <Text type="secondary">(Default)</Text>}
@@ -229,13 +237,19 @@ const CreateSection = ({
                   dropdownStyle={{ minWidth: 350 }}
                   allowClear
                   showSearch
-                  filterOption={(input, option) =>
-                    option.children.props.children[1].toLowerCase().includes(input.toLowerCase())
-                  }
+                  filterOption={(input, option) => {
+                    const searchText = `${option.label} ${option.summary}`.toLowerCase();
+                    return searchText.includes(input.toLowerCase());
+                  }}
                   loading={metadataLoading}
                 >
                   {projectMetadata.epics.map(epic => (
-                    <Option key={epic.key} value={epic.key}>
+                    <Option 
+                      key={epic.key} 
+                      value={epic.key}
+                      label={epic.key}
+                      summary={epic.summary}
+                    >
                       <Space>
                         <Text code>{epic.key}</Text>
                         <Text>{epic.summary}</Text>
@@ -261,13 +275,19 @@ const CreateSection = ({
                   dropdownStyle={{ minWidth: 250 }}
                   allowClear
                   showSearch
-                  filterOption={(input, option) =>
-                    option.children.props.children[1].toLowerCase().includes(input.toLowerCase())
-                  }
+                  filterOption={(input, option) => {
+                    const searchText = `${option.label} ${option.email}`.toLowerCase();
+                    return searchText.includes(input.toLowerCase());
+                  }}
                   loading={metadataLoading}
                 >
                   {projectMetadata.assignees.map(assignee => (
-                    <Option key={assignee.accountId} value={assignee.accountId}>
+                    <Option 
+                      key={assignee.accountId} 
+                      value={assignee.accountId}
+                      label={assignee.displayName}
+                      email={assignee.emailAddress}
+                    >
                       <Space>
                         <Text>{assignee.displayName}</Text>
                         <Text type="secondary">({assignee.emailAddress})</Text>

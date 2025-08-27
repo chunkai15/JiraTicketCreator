@@ -12,7 +12,8 @@ import {
   message,
   Modal,
   Descriptions,
-  Tag
+  Tag,
+  Select
 } from 'antd';
 import {
   SaveOutlined,
@@ -27,6 +28,9 @@ import ConfigService from '../services/configService';
 
 const { Title, Text } = Typography;
 const { confirm } = Modal;
+const { Option } = Select;
+
+const DEFAULT_JIRA_URL = 'https://everfit.atlassian.net';
 
 const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
   const [form] = Form.useForm();
@@ -36,6 +40,7 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
   const [hasConfig, setHasConfig] = useState(false);
   const [configSummary, setConfigSummary] = useState(null);
   const [testResult, setTestResult] = useState(null);
+  const [urlManuallyEdited, setUrlManuallyEdited] = useState(false);
 
   useEffect(() => {
     loadExistingConfig();
@@ -46,6 +51,8 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
     const summary = ConfigService.getConfigSummary();
     
     if (savedConfig) {
+      // Check if URL was manually edited by comparing with default
+      setUrlManuallyEdited(savedConfig.url !== DEFAULT_JIRA_URL);
       form.setFieldsValue(savedConfig);
       setHasConfig(true);
       setConfigSummary(summary);
@@ -53,6 +60,9 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
         onConfigLoaded(savedConfig);
       }
     } else {
+      // Set default URL for new config
+      form.setFieldsValue({ url: DEFAULT_JIRA_URL });
+      setUrlManuallyEdited(false);
       setHasConfig(false);
       setConfigSummary(null);
     }
@@ -118,7 +128,14 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
       onOk() {
         const success = ConfigService.clearJiraConfig();
         if (success) {
+          // Reset all fields
           form.resetFields();
+          
+          // Preserve default URL unless it was manually edited
+          if (!urlManuallyEdited) {
+            form.setFieldsValue({ url: DEFAULT_JIRA_URL });
+          }
+          
           setHasConfig(false);
           setConfigSummary(null);
           setTestResult(null);
@@ -137,6 +154,8 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
       token: 'demo-token-123',
       projectKey: 'DEMO'
     });
+    // Mark URL as manually edited since user chose to load sample
+    setUrlManuallyEdited(true);
     message.info('Sample configuration loaded');
   };
 
@@ -212,6 +231,10 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
           <Input 
             placeholder="https://your-domain.atlassian.net"
             size="large"
+            onFocus={() => {
+              // Mark URL as manually edited when user focuses on the field
+              setUrlManuallyEdited(true);
+            }}
           />
         </Form.Item>
 
@@ -261,15 +284,18 @@ const JiraConfigManager = ({ onConfigSaved, onConfigLoaded }) => {
           label="Project Key"
           name="projectKey"
           rules={[
-            { required: true, message: 'Please enter your project key' },
-            { pattern: /^[A-Z]+$/, message: 'Project key should be uppercase letters only' }
+            { required: true, message: 'Please select a project key' }
           ]}
         >
-          <Input 
-            placeholder="MP"
+          <Select
+            placeholder="Select project key"
             size="large"
-            style={{ textTransform: 'uppercase' }}
-          />
+            style={{ width: '100%' }}
+          >
+            <Option value="MP">MP</Option>
+            <Option value="UP">UP</Option>
+            <Option value="AIT">AIT</Option>
+          </Select>
         </Form.Item>
 
         {/* Test Result */}

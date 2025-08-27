@@ -30,7 +30,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 40 * 1024 * 1024 // 40MB limit
   },
   fileFilter: (req, file, cb) => {
     // Allow common file types
@@ -773,14 +773,41 @@ app.post('/api/jira/project-metadata', async (req, res) => {
         return { data: [] };
       }),
 
-      // Get project assignable users
-      axios.get(
-        `${baseURL}/rest/api/3/user/assignable/search?project=${projectKey}&maxResults=50`,
-        { auth, timeout: 10000 }
-      ).catch(err => {
-        console.warn('Failed to fetch assignees:', err.message);
-        return { data: [] };
-      }),
+      // Get project assignable users with pagination
+      (async () => {
+        try {
+          let allAssignees = [];
+          let startAt = 0;
+          const maxResults = 100;
+          let hasMore = true;
+
+          while (hasMore) {
+            const response = await axios.get(
+              `${baseURL}/rest/api/3/user/assignable/search?project=${projectKey}&maxResults=${maxResults}&startAt=${startAt}`,
+              { auth, timeout: 10000 }
+            );
+            
+            const users = response.data || [];
+            allAssignees = allAssignees.concat(users);
+            
+            // Check if we got fewer results than requested (end of data)
+            hasMore = users.length === maxResults;
+            startAt += maxResults;
+            
+            // Safety limit to prevent infinite loops
+            if (allAssignees.length >= 1000) {
+              console.warn('⚠️  Reached safety limit of 1000 assignees');
+              break;
+            }
+          }
+          
+          console.log(`📋 Fetched ${allAssignees.length} assignees with pagination`);
+          return { data: allAssignees };
+        } catch (err) {
+          console.warn('Failed to fetch assignees:', err.message);
+          return { data: [] };
+        }
+      })(),
 
       // Get project epics (parent issues)
       axios.get(
@@ -800,15 +827,41 @@ app.post('/api/jira/project-metadata', async (req, res) => {
       isDefault: false // Will be set below
     })) || [];
 
-    // Find default sprint: Active Sprint Backlog (MP) has highest priority
+    // Find default sprint with priority order:
+    // 1. "Active Sprint Backlog (249)" for all projects (UP, AIT, MP)
+    // 2. "Active Sprint Backlog (PROJECT_KEY)" for specific project
+    // 3. First active sprint as fallback
+    
+    console.log(`Looking for default sprint for project: ${projectKey}`);
+    console.log('Available sprints:', sprints.map(s => ({ id: s.id, name: s.name, state: s.state })));
+    
     let defaultSprint = sprints.find(s => 
-      s.name.toLowerCase().includes('active sprint backlog') && 
-      s.name.includes(`(${projectKey})`)
+      s.name === 'Active Sprint Backlog (249)'
     );
     
-    // If no "Active Sprint Backlog (MP)", then use first active sprint
+    // If exact match not found, try case-insensitive partial match
+    if (!defaultSprint) {
+      defaultSprint = sprints.find(s => 
+        s.name.toLowerCase().includes('active sprint backlog') && 
+        s.name.includes('(249)')
+      );
+    }
+    
+    console.log('Found Active Sprint Backlog (249):', defaultSprint ? defaultSprint.name : 'NOT FOUND');
+    
+    // If no "Active Sprint Backlog (249)", try project-specific
+    if (!defaultSprint) {
+      defaultSprint = sprints.find(s => 
+        s.name.toLowerCase().includes('active sprint backlog') && 
+        s.name.includes(`(${projectKey})`)
+      );
+      console.log(`Found Active Sprint Backlog (${projectKey}):`, defaultSprint ? defaultSprint.name : 'NOT FOUND');
+    }
+    
+    // If no "Active Sprint Backlog" variants, use first active sprint
     if (!defaultSprint) {
       defaultSprint = sprints.find(s => s.state === 'active');
+      console.log('Using first active sprint:', defaultSprint ? defaultSprint.name : 'NOT FOUND');
     }
     
     if (defaultSprint) {
@@ -851,6 +904,8 @@ app.post('/api/jira/project-metadata', async (req, res) => {
       emailAddress: user.emailAddress,
       avatarUrl: user.avatarUrls?.['24x24']
     })) || [];
+
+    console.log(`👥 Total assignees processed: ${assignees.length} users`);
 
     // Process epics (parent issues)
     const epics = epicsResponse.data.issues?.map(epic => ({

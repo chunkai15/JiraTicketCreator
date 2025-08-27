@@ -15,7 +15,9 @@ import {
   Image,
   List,
   Progress,
-  Switch
+  Switch,
+  Select,
+  Divider
 } from 'antd';
 import {
   PlusOutlined,
@@ -33,6 +35,7 @@ import TranslationService from '../services/translationService';
 const { TextArea } = Input;
 const { Text } = Typography;
 const { Panel } = Collapse;
+const { Option } = Select;
 
 const TextInputSection = ({ 
   textInputs, 
@@ -40,7 +43,9 @@ const TextInputSection = ({
   onAddInput, 
   onRemoveInput,
   attachments,
-  onAttachmentsChange
+  onAttachmentsChange,
+  ticketTypes,
+  onTicketTypeChange
 }) => {
   const [useAPITranslation, setUseAPITranslation] = useState(true);
   
@@ -178,14 +183,6 @@ const TextInputSection = ({
         style={{ padding: 0, height: 'auto' }}
       >
         Bug Report
-      </Button>
-      <Button 
-        size="small" 
-        type="link"
-        onClick={() => loadSample(index, 'feature')}
-        style={{ padding: 0, height: 'auto' }}
-      >
-        Feature Request
       </Button>
       <Button 
         size="small" 
@@ -410,6 +407,24 @@ const TextInputSection = ({
             }}
           >
             {renderSampleButtons(index)}
+            
+            <div style={{ marginBottom: 12 }}>
+              <Space align="center">
+                <Text strong style={{ fontSize: 12 }}>Ticket Type:</Text>
+                <Select
+                  value={ticketTypes?.[index] || 'Bug'}
+                  onChange={(value) => onTicketTypeChange?.(index, value)}
+                  style={{ width: 120 }}
+                  size="small"
+                >
+                  <Option value="Bug">Bug</Option>
+                  <Option value="Task">Task</Option>
+                </Select>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  This will be used as the ticket type when parsing
+                </Text>
+              </Space>
+            </div>
             
             <TextArea
               value={text}
