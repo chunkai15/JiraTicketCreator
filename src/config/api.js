@@ -17,6 +17,12 @@ const getApiBaseUrl = () => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
+// Debug logging
+console.log('🔧 API Configuration Debug:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('REACT_APP_API_BASE_URL:', process.env.REACT_APP_API_BASE_URL);
+console.log('Final API_BASE_URL:', API_BASE_URL);
+
 export default {
   API_BASE_URL,
   TIMEOUT: 30000,
