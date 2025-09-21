@@ -1,6 +1,8 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout, Spin } from 'antd';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './responsive.css';
 
 import Navigation from './components/Navigation';
@@ -34,6 +36,8 @@ function App() {
           </Routes>
         </Suspense>
       </Layout>
+      <Analytics />
+      <SpeedInsights />
     </Router>
   );
 }
