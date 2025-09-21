@@ -1,7 +1,6 @@
 // Frontend service for Jira Releases API
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3001/api';
+import { API_BASE_URL } from '../config/api';
 
 export class JiraReleasesService {
   constructor(config) {

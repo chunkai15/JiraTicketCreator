@@ -1,8 +1,7 @@
 // Frontend service to call backend proxy API
 import axios from 'axios';
 import FileUploadService from './fileUploadService';
-
-const API_BASE_URL = 'http://localhost:3001/api';
+import { API_BASE_URL } from '../config/api';
 
 export class JiraApiService {
   constructor(config) {

@@ -8,6 +8,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Vercel deployment compatibility
+const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
+
 // Generate complete checklist content with all 22 steps
 // Generate ADF (Atlas Document Format) for Cloud Editor native compatibility
 function generateCompleteChecklistADF(releaseName) {
@@ -593,8 +596,8 @@ ${checkboxCell(taskId++)}
   return content;
 }
 
-// Create uploads directory
-const uploadsDir = path.join(__dirname, '../uploads');
+// Create uploads directory - handle Vercel's read-only filesystem
+const uploadsDir = isVercel ? '/tmp/uploads' : path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -653,7 +656,7 @@ app.post('/api/upload', upload.array('files', 10), (req, res) => {
       originalname: file.originalname,
       size: file.size,
       mimetype: file.mimetype,
-      url: `http://localhost:${PORT}/uploads/${file.filename}`
+      url: isVercel ? `/uploads/${file.filename}` : `http://localhost:${PORT}/uploads/${file.filename}`
     }));
 
     res.json({
@@ -2607,13 +2610,19 @@ app.post('/api/jira/get-issue-status-breakdown', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Jira Tool Proxy Server running on http://localhost:${PORT}`);
-  console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🔧 New endpoints added:`);
-  console.log(`   • Jira Releases: /api/jira/get-releases, /api/jira/get-release-details, /api/jira/get-issue-status-breakdown`);
-  console.log(`   • Confluence: /api/confluence/test-connection, /api/confluence/create-page`);
-});
+// Export app for Vercel serverless functions
+if (isVercel) {
+  module.exports = app;
+} else {
+  // Start server in development/traditional hosting
+  app.listen(PORT, () => {
+    console.log(`🚀 Jira Tool Proxy Server running on http://localhost:${PORT}`);
+    console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`🔧 New endpoints added:`);
+    console.log(`   • Jira Releases: /api/jira/get-releases, /api/jira/get-release-details, /api/jira/get-issue-status-breakdown`);
+    console.log(`   • Confluence: /api/confluence/test-connection, /api/confluence/create-page`);
+  });
+}
 
 module.exports = app;
 

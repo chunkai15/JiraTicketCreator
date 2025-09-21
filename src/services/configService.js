@@ -153,7 +153,9 @@ const ConfigService = {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/jira/test-connection', {
+      // Import API_BASE_URL dynamically to avoid circular imports
+      const { API_BASE_URL } = await import('../config/api');
+      const response = await fetch(`${API_BASE_URL}/jira/test-connection`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
