@@ -5,13 +5,18 @@ const getApiBaseUrl = () => {
     return 'http://localhost:3001/api';
   }
   
-  // Production environment
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
-  }
-  
-  // Fallback to current domain + /api for production
+  // Production environment - Force correct domain
   const currentDomain = window.location.origin;
+  
+  // Debug logging
+  console.log('🔧 API Config Debug:', {
+    NODE_ENV: process.env.NODE_ENV,
+    REACT_APP_API_BASE_URL: process.env.REACT_APP_API_BASE_URL,
+    currentDomain: currentDomain,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Always use current domain in production to avoid domain mismatch
   return `${currentDomain}/api`;
 };
 
