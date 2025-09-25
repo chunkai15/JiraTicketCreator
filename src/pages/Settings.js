@@ -32,7 +32,6 @@ import {
 } from '@ant-design/icons';
 
 import ConfigurationCard from '../components/release/ConfigurationCard';
-import ApiDebugInfo from '../components/ApiDebugInfo';
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;
@@ -87,9 +86,6 @@ const Settings = () => {
           )}
         </Space>
       </Card>
-
-      {/* API Debug Info */}
-      <ApiDebugInfo />
 
       {/* Configuration Section */}
       <Row gutter={[24, 24]}>
