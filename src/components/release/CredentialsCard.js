@@ -397,15 +397,45 @@ const CredentialsCard = ({
                 style={{ marginTop: 12 }}
               >
                 <Select 
-                  placeholder="Select Confluence space"
+                  placeholder={
+                    !confluenceTestResult?.success 
+                      ? "Test connection first to load spaces"
+                      : confluenceSpaces.length === 0
+                      ? "No spaces found"
+                      : "Select Confluence space"
+                  }
                   loading={loadingSpaces}
                   disabled={!confluenceTestResult?.success}
+                  showSearch
+                  filterOption={(input, option) =>
+                    option?.children?.toLowerCase().includes(input.toLowerCase())
+                  }
+                  getPopupContainer={(triggerNode) => triggerNode.parentNode}
+                  dropdownStyle={{ zIndex: 1050 }}
+                  notFoundContent={loadingSpaces ? "Loading..." : "No spaces found"}
                 >
-                  {confluenceSpaces.map(space => (
-                    <Option key={space.key} value={space.key}>
-                      {ConfluenceService.formatSpaceDisplay(space)}
+                  {confluenceSpaces && confluenceSpaces.length > 0 ? (
+                    confluenceSpaces.map(space => {
+                      // Fallback for missing space data
+                      const spaceKey = space?.key || 'unknown';
+                      const spaceName = space?.name || 'Unknown Space';
+                      const displayText = `${spaceName} (${spaceKey})`;
+                      
+                      return (
+                        <Option 
+                          key={spaceKey} 
+                          value={spaceKey}
+                          title={displayText}
+                        >
+                          {displayText}
+                        </Option>
+                      );
+                    })
+                  ) : (
+                    <Option disabled value="">
+                      {loadingSpaces ? "Loading spaces..." : "No spaces available"}
                     </Option>
-                  ))}
+                  )}
                 </Select>
               </Form.Item>
 

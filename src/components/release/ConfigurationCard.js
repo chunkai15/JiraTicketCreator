@@ -84,8 +84,15 @@ const ConfigurationCard = ({
       });
 
       const spacesResult = await confluenceService.getSpaces();
+      console.log('🔍 Spaces Result:', spacesResult);
+      
       if (spacesResult.success) {
-        setConfluenceSpaces(spacesResult.data.spaces || []);
+        const spaces = spacesResult.data.spaces || [];
+        console.log('📋 Loaded spaces:', spaces.length, spaces);
+        setConfluenceSpaces(spaces);
+      } else {
+        console.error('❌ Failed to load spaces:', spacesResult.error);
+        setConfluenceSpaces([]);
       }
     } catch (error) {
       console.warn('Failed to load spaces:', error);
@@ -246,9 +253,17 @@ const ConfigurationCard = ({
       }
 
       // Load spaces
+      console.log('🔍 Test Connection Spaces Result:', spacesResult);
+      
       if (spacesResult.success) {
-        setConfluenceSpaces(spacesResult.data.spaces || []);
-        message.success(`✅ Loaded ${spacesResult.data.spaces?.length || 0} spaces`);
+        const spaces = spacesResult.data.spaces || [];
+        console.log('📋 Test Connection Loaded spaces:', spaces.length, spaces);
+        setConfluenceSpaces(spaces);
+        message.success(`✅ Loaded ${spaces.length} spaces`);
+      } else {
+        console.error('❌ Test Connection Failed to load spaces:', spacesResult.error);
+        setConfluenceSpaces([]);
+        message.warning(`⚠️ Connection successful but failed to load spaces: ${spacesResult.error}`);
       }
 
       setTestResult({ 
@@ -446,14 +461,45 @@ const ConfigurationCard = ({
           rules={[{ required: true, message: 'Please select a space' }]}
         >
           <Select 
-            placeholder="Test connection first to load spaces"
+            placeholder={
+              !testResult?.success 
+                ? "Test connection first to load spaces"
+                : confluenceSpaces.length === 0
+                ? "No spaces found"
+                : "Select Confluence space"
+            }
             disabled={!testResult?.success}
+            loading={loadingSpaces}
+            showSearch
+            filterOption={(input, option) =>
+              option?.children?.toLowerCase().includes(input.toLowerCase())
+            }
+            getPopupContainer={(triggerNode) => triggerNode.parentNode}
+            dropdownStyle={{ zIndex: 1050 }}
+            notFoundContent={loadingSpaces ? "Loading..." : "No spaces found"}
           >
-            {confluenceSpaces.map(space => (
-              <Option key={space.key} value={space.key}>
-                {ConfluenceService.formatSpaceDisplay(space)}
+            {confluenceSpaces && confluenceSpaces.length > 0 ? (
+              confluenceSpaces.map(space => {
+                // Fallback for missing space data
+                const spaceKey = space?.key || 'unknown';
+                const spaceName = space?.name || 'Unknown Space';
+                const displayText = `${spaceName} (${spaceKey})`;
+                
+                return (
+                  <Option 
+                    key={spaceKey} 
+                    value={spaceKey}
+                    title={displayText}
+                  >
+                    {displayText}
+                  </Option>
+                );
+              })
+            ) : (
+              <Option disabled value="">
+                {loadingSpaces ? "Loading spaces..." : "No spaces available"}
               </Option>
-            ))}
+            )}
           </Select>
         </Form.Item>
 

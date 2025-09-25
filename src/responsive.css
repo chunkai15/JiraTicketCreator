@@ -100,6 +100,49 @@
   padding-right: 12px;
 }
 
+/* Windows compatibility fixes for Ant Design Select dropdown */
+.ant-select-dropdown {
+  z-index: 1050 !important;
+}
+
+.ant-select-dropdown-menu {
+  max-height: 256px;
+  overflow-y: auto;
+}
+
+.ant-select-dropdown-menu-item {
+  padding: 8px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ant-select-dropdown-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.ant-select-dropdown-menu-item-selected {
+  background-color: #e6f7ff;
+  font-weight: 500;
+}
+
+/* Fix for Windows Chrome/Edge dropdown rendering */
+.ant-select-selection {
+  border-radius: 6px;
+}
+
+.ant-select-selector {
+  border-radius: 6px !important;
+}
+
+/* Ensure dropdown is properly positioned */
+.ant-select-dropdown-placement-bottomLeft,
+.ant-select-dropdown-placement-bottomRight,
+.ant-select-dropdown-placement-topLeft,
+.ant-select-dropdown-placement-topRight {
+  z-index: 1050 !important;
+}
+
 @media (min-width: 1600px) {
   .responsive-row {
     margin-left: -16px;
