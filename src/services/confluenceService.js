@@ -196,13 +196,13 @@ export class ConfluenceService {
   }
 
   // Generate main release page content
-  static generateMainPageContent(releaseName, releaseDateText, jql, timestamp) {
+  static generateMainPageContent(releaseName, releaseDateText, jql) {
     const jiraMacro = ConfluenceService.generateJiraIssuesMacro(jql);
     
     return `<h1>${releaseName} Release - ${releaseDateText}</h1>
 
 <h2>Overview</h2>
-<p><em>This page was auto-generated on ${timestamp}</em></p>
+<p><em>This release page contains all issues and tasks related to the ${releaseName} release.</em></p>
 
 <h2>Issues in this Release</h2>
 ${jiraMacro}

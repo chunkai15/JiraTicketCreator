@@ -352,8 +352,7 @@ const ReleasePageCreator = () => {
         const mainPageContent = ConfluenceService.generateMainPageContent(
           currentReleaseName,
           currentReleaseDateText,
-          currentJql,
-          new Date().toLocaleString()
+          currentJql
         );
 
         let mainPageResult;

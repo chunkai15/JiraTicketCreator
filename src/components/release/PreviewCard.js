@@ -44,8 +44,7 @@ const PreviewCard = ({
     ? ConfluenceService.generateMainPageContent(
         releaseName,
         releaseDateText,
-        jql,
-        new Date().toLocaleString()
+        jql
       )
     : null;
 
