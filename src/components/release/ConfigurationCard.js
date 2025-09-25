@@ -58,6 +58,7 @@ const ConfigurationCard = ({
   const [configSummary, setConfigSummary] = useState(null);
   const [testResult, setTestResult] = useState(null);
   const [confluenceSpaces, setConfluenceSpaces] = useState([]);
+  const [loadingSpaces, setLoadingSpaces] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(!isSettingsPage); // Expanded in settings page
   const [configStatus, setConfigStatus] = useState('incomplete'); // incomplete, testing, ready
 
@@ -76,6 +77,7 @@ const ConfigurationCard = ({
 
   // Load Confluence spaces without testing connection
   const loadConfluenceSpaces = async (config) => {
+    setLoadingSpaces(true);
     try {
       const confluenceService = new ConfluenceService({
         url: config.confluenceUrl,
@@ -96,6 +98,9 @@ const ConfigurationCard = ({
       }
     } catch (error) {
       console.warn('Failed to load spaces:', error);
+      setConfluenceSpaces([]);
+    } finally {
+      setLoadingSpaces(false);
     }
   };
 
