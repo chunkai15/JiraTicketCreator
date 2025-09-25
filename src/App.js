@@ -33,7 +33,6 @@ function App() {
             <Route path="/ticket-creator" element={<TicketCreator />} />
             <Route path="/release-creator" element={<ReleaseCreator />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/settings-test" element={<SettingsTest />} />
           </Routes>
         </Suspense>
       </Layout>

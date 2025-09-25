@@ -72,6 +72,7 @@ const ConfigurationCard = ({
   };
 
   useEffect(() => {
+    console.log('🔧 ConfigurationCard component mounted successfully - v2.0');
     loadExistingConfig();
   }, []);
 

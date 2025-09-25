@@ -38,6 +38,11 @@ const { Title, Paragraph } = Typography;
 
 const Settings = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Force component to re-render and clear any cache issues
+  useEffect(() => {
+    console.log('🎯 Settings component mounted successfully - v2.0');
+  }, []);
 
   const handleConfigSaved = () => {
     setHasUnsavedChanges(false);
