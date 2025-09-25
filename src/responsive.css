@@ -100,47 +100,100 @@
   padding-right: 12px;
 }
 
-/* Windows compatibility fixes for Ant Design Select dropdown */
+/* ===== COMPREHENSIVE WINDOWS DROPDOWN FIXES ===== */
+
+/* Base dropdown fixes */
 .ant-select-dropdown {
-  z-index: 1050 !important;
+  z-index: 9999 !important;
+  position: absolute !important;
+  min-width: 200px !important;
 }
 
+/* Windows-specific rendering fixes */
 .ant-select-dropdown-menu {
-  max-height: 256px;
-  overflow-y: auto;
+  max-height: 256px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
 }
 
 .ant-select-dropdown-menu-item {
-  padding: 8px 12px;
+  padding: 8px 12px !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.5;
+  cursor: pointer;
 }
 
 .ant-select-dropdown-menu-item:hover {
-  background-color: #f5f5f5;
+  background-color: #f5f5f5 !important;
+  color: #262626;
 }
 
 .ant-select-dropdown-menu-item-selected {
-  background-color: #e6f7ff;
+  background-color: #e6f7ff !important;
+  color: #1890ff;
   font-weight: 500;
 }
 
-/* Fix for Windows Chrome/Edge dropdown rendering */
+.ant-select-dropdown-menu-item-active {
+  background-color: #f5f5f5 !important;
+}
+
+/* Windows Chrome/Edge specific fixes */
 .ant-select-selection {
   border-radius: 6px;
+  border: 1px solid #d9d9d9;
 }
 
 .ant-select-selector {
   border-radius: 6px !important;
+  border: none !important;
 }
 
-/* Ensure dropdown is properly positioned */
+/* Force proper positioning on all placements */
 .ant-select-dropdown-placement-bottomLeft,
 .ant-select-dropdown-placement-bottomRight,
 .ant-select-dropdown-placement-topLeft,
 .ant-select-dropdown-placement-topRight {
-  z-index: 1050 !important;
+  z-index: 9999 !important;
+  position: absolute !important;
+}
+
+/* Windows-specific scrollbar styling */
+.ant-select-dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ant-select-dropdown-menu::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.ant-select-dropdown-menu::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.ant-select-dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Additional Windows compatibility */
+@media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+  /* IE11 specific fixes */
+  .ant-select-dropdown {
+    border: 1px solid #d9d9d9;
+  }
+}
+
+/* Windows 10/11 specific fixes */
+@supports (-ms-ime-align: auto) {
+  .ant-select-dropdown {
+    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+  }
 }
 
 @media (min-width: 1600px) {

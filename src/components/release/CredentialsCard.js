@@ -410,9 +410,41 @@ const CredentialsCard = ({
                   filterOption={(input, option) =>
                     option?.children?.toLowerCase().includes(input.toLowerCase())
                   }
-                  getPopupContainer={(triggerNode) => triggerNode.parentNode}
-                  dropdownStyle={{ zIndex: 1050 }}
+                  getPopupContainer={(triggerNode) => {
+                    // Enhanced container detection for Windows compatibility
+                    console.log('🔧 CredentialsCard: Setting popup container');
+                    return triggerNode.parentNode || document.body;
+                  }}
+                  dropdownStyle={{ 
+                    zIndex: 9999,
+                    position: 'absolute',
+                    minWidth: '200px'
+                  }}
+                  dropdownMatchSelectWidth={false}
+                  dropdownAlign={{
+                    points: ['tl', 'bl'],
+                    offset: [0, 4],
+                    overflow: {
+                      adjustX: true,
+                      adjustY: true
+                    }
+                  }}
+                  virtual={false}
                   notFoundContent={loadingSpaces ? "Loading..." : "No spaces found"}
+                  onDropdownVisibleChange={(visible) => {
+                    console.log(`🔽 CredentialsCard: Dropdown ${visible ? 'opened' : 'closed'} on ${navigator.platform}`);
+                    if (visible) {
+                      // Force re-position on Windows
+                      setTimeout(() => {
+                        const dropdown = document.querySelector('.ant-select-dropdown');
+                        if (dropdown && navigator.platform.toLowerCase().includes('win')) {
+                          console.log('🪟 Windows: Force dropdown positioning');
+                          dropdown.style.zIndex = '9999';
+                          dropdown.style.position = 'absolute';
+                        }
+                      }, 10);
+                    }
+                  }}
                 >
                   {confluenceSpaces && confluenceSpaces.length > 0 ? (
                     confluenceSpaces.map(space => {
