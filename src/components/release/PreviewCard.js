@@ -10,7 +10,8 @@ import {
   Tag,
   List,
   Spin,
-  Result
+  Result,
+  message
 } from 'antd';
 import {
   EyeOutlined,
@@ -18,7 +19,8 @@ import {
   CheckCircleOutlined,
   LinkOutlined,
   FileTextOutlined,
-  OrderedListOutlined
+  OrderedListOutlined,
+  CopyOutlined
 } from '@ant-design/icons';
 
 import ConfluenceService from '../../services/confluenceService';
@@ -613,8 +615,22 @@ const PreviewCard = ({
                           rel="noopener noreferrer"
                         >
                           Open Page
-                        </Button>
-                      ]}
+                        </Button>,
+                        page.shortUrl && (
+                          <Button
+                            key="copy-short"
+                            type="link"
+                            size="small"
+                            icon={<CopyOutlined />}
+                            onClick={() => {
+                              navigator.clipboard.writeText(page.shortUrl);
+                              message.success('Short URL copied!');
+                            }}
+                          >
+                            Copy Short URL
+                          </Button>
+                        )
+                      ].filter(Boolean)}
                     >
                       <List.Item.Meta
                         avatar={

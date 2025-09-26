@@ -15,7 +15,8 @@ import {
   Tag,
   Select,
   Collapse,
-  Badge
+  Badge,
+  Tooltip
 } from 'antd';
 import {
   SaveOutlined,
@@ -27,11 +28,14 @@ import {
   ExclamationCircleOutlined,
   SettingOutlined,
   DownOutlined,
-  UpOutlined
+  UpOutlined,
+  SlackOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import ConfigService from '../../services/configService';
 import JiraApiService from '../../services/jiraApiService';
 import ConfluenceService from '../../services/confluenceService';
+import SlackService from '../../services/slackService';
 
 const { Title, Text } = Typography;
 const { confirm } = Modal;
@@ -116,7 +120,8 @@ const ConfigurationCard = ({
       token: '', // User must enter their own API token
       projectKey: 'MP',
       spaceKey: '',
-      parentPageId: ''
+      parentPageId: '',
+      slackWebhookUrl: SlackService.getWebhookUrl() || ''
     };
 
     if (savedJiraConfig) {
@@ -197,6 +202,11 @@ const ConfigurationCard = ({
       
       // Save Confluence config
       localStorage.setItem('confluence-config', JSON.stringify(confluenceConfig));
+
+      // Save Slack webhook URL
+      if (values.slackWebhookUrl) {
+        SlackService.saveWebhookUrl(values.slackWebhookUrl);
+      }
 
       if (jiraSuccess) {
         message.success('Configuration saved successfully!');
@@ -577,6 +587,54 @@ const ConfigurationCard = ({
             iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
           />
         </Form.Item>
+
+        <Divider style={{ margin: '16px 0' }} />
+
+        {/* Slack Configuration */}
+        <Title level={5}>
+          <Space>
+            <SlackOutlined style={{ color: '#4A154B' }} />
+            Slack Integration
+          </Space>
+        </Title>
+        
+        <Form.Item
+          label={
+            <Space>
+              <Text>Slack Webhook URL (Optional)</Text>
+              <Tooltip title="Get this from your Slack workspace: Apps > Incoming Webhooks > Create New Webhook">
+                <InfoCircleOutlined />
+              </Tooltip>
+            </Space>
+          }
+          name="slackWebhookUrl"
+          rules={[
+            { 
+              pattern: /^https:\/\/hooks\.slack\.com\//,
+              message: 'Please enter a valid Slack webhook URL'
+            }
+          ]}
+        >
+          <Input 
+            placeholder="https://hooks.slack.com/services/..."
+            prefix={<SlackOutlined />}
+          />
+        </Form.Item>
+
+        <Alert
+          message="How to get Slack Webhook URL"
+          description={
+            <div>
+              <p>1. Go to your Slack workspace settings</p>
+              <p>2. Navigate to Apps → Incoming Webhooks</p>
+              <p>3. Click "Add to Slack" and choose your channel</p>
+              <p>4. Copy the webhook URL and paste it above</p>
+            </div>
+          }
+          type="info"
+          showIcon
+          style={{ marginBottom: 16, fontSize: '12px' }}
+        />
 
         {/* Action Buttons */}
         <Space style={{ width: '100%', justifyContent: 'center' }} size="middle">

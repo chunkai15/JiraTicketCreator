@@ -2284,9 +2284,32 @@ app.post('/api/confluence/create-page', async (req, res) => {
     }
 
     const createdPage = response.data;
-    const pageUrl = `${baseURL}/wiki/spaces/${spaceKey}/pages/${createdPage.id}/${encodeURIComponent(title.replace(/\s+/g, '+'))}`;
+    
+    // Use proper Confluence URL formats
+    let pageUrl;
+    let shortUrl;
+    
+    // Try to get the URL from the API response first
+    if (createdPage._links && createdPage._links.webui) {
+      pageUrl = `${baseURL}${createdPage._links.webui}`;
+    } else if (createdPage._links && createdPage._links.base) {
+      pageUrl = `${createdPage._links.base}${createdPage._links.webui || `/wiki/spaces/${spaceKey}/pages/${createdPage.id}`}`;
+    } else {
+      // Fallback to standard Confluence Cloud format
+      pageUrl = `${baseURL}/wiki/spaces/${spaceKey}/pages/${createdPage.id}`;
+    }
+    
+    // Generate short URL format (tinyui)
+    if (createdPage._links && createdPage._links.tinyui) {
+      shortUrl = `${baseURL}${createdPage._links.tinyui}`;
+    } else {
+      // Generate short URL manually for Confluence Cloud
+      shortUrl = `${baseURL}/wiki/x/${createdPage.id}`;
+    }
 
     console.log(`Successfully created page: ${createdPage.title} (ID: ${createdPage.id})`);
+    console.log(`Page URL: ${pageUrl}`);
+    console.log(`Short URL: ${shortUrl}`);
 
     res.json({
       success: true,
@@ -2294,6 +2317,7 @@ app.post('/api/confluence/create-page', async (req, res) => {
         id: createdPage.id,
         title: createdPage.title,
         url: pageUrl,
+        shortUrl: shortUrl,
         spaceKey: spaceKey
       }
     });
@@ -2428,9 +2452,32 @@ app.post('/api/confluence/create-subpage', async (req, res) => {
     }
 
     const createdPage = response.data;
-    const pageUrl = `${baseURL}/wiki/spaces/${spaceKey}/pages/${createdPage.id}/${encodeURIComponent(title.replace(/\s+/g, '+'))}`;
+    
+    // Use proper Confluence URL formats
+    let pageUrl;
+    let shortUrl;
+    
+    // Try to get the URL from the API response first
+    if (createdPage._links && createdPage._links.webui) {
+      pageUrl = `${baseURL}${createdPage._links.webui}`;
+    } else if (createdPage._links && createdPage._links.base) {
+      pageUrl = `${createdPage._links.base}${createdPage._links.webui || `/wiki/spaces/${spaceKey}/pages/${createdPage.id}`}`;
+    } else {
+      // Fallback to standard Confluence Cloud format
+      pageUrl = `${baseURL}/wiki/spaces/${spaceKey}/pages/${createdPage.id}`;
+    }
+    
+    // Generate short URL format (tinyui)
+    if (createdPage._links && createdPage._links.tinyui) {
+      shortUrl = `${baseURL}${createdPage._links.tinyui}`;
+    } else {
+      // Generate short URL manually for Confluence Cloud
+      shortUrl = `${baseURL}/wiki/x/${createdPage.id}`;
+    }
 
     console.log(`Successfully created sub-page: ${createdPage.title} (ID: ${createdPage.id})`);
+    console.log(`Sub-page URL: ${pageUrl}`);
+    console.log(`Sub-page Short URL: ${shortUrl}`);
 
     res.json({
       success: true,
@@ -2438,6 +2485,7 @@ app.post('/api/confluence/create-subpage', async (req, res) => {
         id: createdPage.id,
         title: createdPage.title,
         url: pageUrl,
+        shortUrl: shortUrl,
         spaceKey: spaceKey,
         parentId: parentId
       }
@@ -2479,6 +2527,76 @@ app.post('/api/confluence/create-subpage', async (req, res) => {
           break;
         default:
           errorMessage = `Sub-page creation error (${status}): ${data.message || error.message}`;
+      }
+    }
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+});
+
+// Send Slack notification
+app.post('/api/slack/send-notification', async (req, res) => {
+  try {
+    const { webhookUrl, message } = req.body;
+    
+    if (!webhookUrl || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: webhookUrl, message'
+      });
+    }
+
+    // Validate webhook URL format
+    if (!webhookUrl.startsWith('https://hooks.slack.com/')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid Slack webhook URL format'
+      });
+    }
+
+    console.log('Sending Slack notification...');
+    console.log('Webhook URL:', webhookUrl.substring(0, 50) + '...');
+    console.log('Message:', JSON.stringify(message, null, 2));
+
+    const response = await axios.post(webhookUrl, message, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    console.log('✅ Slack notification sent successfully');
+    console.log('Response status:', response.status);
+
+    res.json({
+      success: true,
+      message: 'Notification sent successfully'
+    });
+
+  } catch (error) {
+    console.error('Failed to send Slack notification:', error.message);
+    
+    let errorMessage = 'Failed to send Slack notification';
+    
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data;
+      
+      switch (status) {
+        case 400:
+          errorMessage = `Bad request: ${data || 'Invalid webhook URL or message format'}`;
+          break;
+        case 404:
+          errorMessage = 'Webhook URL not found. Please check your Slack webhook URL.';
+          break;
+        case 403:
+          errorMessage = 'Forbidden. Please check your Slack webhook permissions.';
+          break;
+        default:
+          errorMessage = `Slack API error (${status}): ${data || error.message}`;
       }
     }
 

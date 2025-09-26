@@ -14,7 +14,8 @@ import {
   Spin,
   Result,
   List,
-  Descriptions
+  Descriptions,
+  message
 } from 'antd';
 import {
   EyeOutlined,
@@ -23,6 +24,8 @@ import {
   BugOutlined,
   OrderedListOutlined,
   UserOutlined,
+  LinkOutlined,
+  CopyOutlined,
   CalendarOutlined,
   BarChartOutlined,
   FileTextOutlined
@@ -349,16 +352,55 @@ const ReleaseSummaryCard = ({
                   size="small"
                   dataSource={createdPages}
                   renderItem={(page) => (
-                    <List.Item>
-                      <Space>
-                        {page.type === 'main' ? <FileTextOutlined /> : <CheckCircleOutlined />}
-                        <a href={page.url} target="_blank" rel="noopener noreferrer">
-                          {page.title}
-                        </a>
-                        <Tag color={page.type === 'main' ? 'blue' : 'green'}>
-                          {page.type === 'main' ? 'Main Page' : 'Checklist'}
-                        </Tag>
-                      </Space>
+                    <List.Item
+                      actions={[
+                        <Button
+                          key="open"
+                          type="link"
+                          size="small"
+                          icon={<LinkOutlined />}
+                          href={page.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Open
+                        </Button>,
+                        page.shortUrl && (
+                          <Button
+                            key="copy-short"
+                            type="link"
+                            size="small"
+                            icon={<CopyOutlined />}
+                            onClick={() => {
+                              navigator.clipboard.writeText(page.shortUrl);
+                              message.success('Short URL copied!');
+                            }}
+                          >
+                            Copy Short URL
+                          </Button>
+                        )
+                      ].filter(Boolean)}
+                    >
+                      <List.Item.Meta
+                        avatar={page.type === 'main' ? <FileTextOutlined /> : <CheckCircleOutlined />}
+                        title={
+                          <Space>
+                            <a href={page.url} target="_blank" rel="noopener noreferrer">
+                              {page.title}
+                            </a>
+                            <Tag color={page.type === 'main' ? 'blue' : 'green'}>
+                              {page.type === 'main' ? 'Main Page' : 'Checklist'}
+                            </Tag>
+                          </Space>
+                        }
+                        description={
+                          page.shortUrl && (
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              Short URL: {page.shortUrl}
+                            </Text>
+                          )
+                        }
+                      />
                     </List.Item>
                   )}
                 />

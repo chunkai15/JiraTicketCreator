@@ -25,6 +25,7 @@ import ReleaseSummaryCard from './ReleaseSummaryCard';
 import ConfigService from '../../services/configService';
 import JiraReleasesService from '../../services/jiraReleasesService';
 import ConfluenceService from '../../services/confluenceService';
+import SlackService from '../../services/slackService';
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;
@@ -285,6 +286,38 @@ const ReleasePageCreator = () => {
     setHasUnsavedChanges(true);
   }, []);
 
+  // Auto-send Slack notification
+  const autoSendSlackNotification = async (createdPages) => {
+    try {
+      const webhookUrl = SlackService.getWebhookUrl();
+      if (!webhookUrl) {
+        console.log('No Slack webhook URL configured, skipping notification');
+        return;
+      }
+
+      const isInBulkMode = selectedReleases.length > 1;
+      const releaseData = {
+        releaseName,
+        releaseDate: releaseDateText,
+        pages: createdPages,
+        selectedReleases: isInBulkMode ? selectedReleases : null,
+        releases
+      };
+
+      message.info('Sending Slack notification...');
+      const result = await SlackService.sendReleaseNotification(webhookUrl, releaseData);
+      
+      if (result.success) {
+        message.success('✅ Slack notification sent successfully!');
+      } else {
+        message.warning(`⚠️ Failed to send Slack notification: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending Slack notification:', error);
+      message.warning(`⚠️ Failed to send Slack notification: ${error.message}`);
+    }
+  };
+
   // Create pages in Confluence
   const createPages = useCallback(async () => {
     if (!confluenceConfig.url || !confluenceConfig.email || !confluenceConfig.token) {
@@ -443,6 +476,9 @@ const ReleasePageCreator = () => {
       if (results.length > 0) {
         const releaseCount = isInBulkMode ? selectedReleases.length : 1;
         message.success(`🎉 Successfully created ${results.length} page(s) for ${releaseCount} release(s)!`);
+        
+        // Auto-send to Slack if webhook URL is configured
+        await autoSendSlackNotification(results);
       }
 
     } catch (error) {
@@ -549,6 +585,7 @@ const ReleasePageCreator = () => {
             disabled={currentStep < 2}
           />
         </Col>
+
       </Row>
     </Content>
   );
