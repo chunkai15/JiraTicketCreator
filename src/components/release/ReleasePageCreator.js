@@ -24,6 +24,7 @@ import PreviewCard from './PreviewCard';
 import ReleaseSummaryCard from './ReleaseSummaryCard';
 import ConfigService from '../../services/configService';
 import JiraReleasesService from '../../services/jiraReleasesService';
+import JiraApiService from '../../services/jiraApiService';
 import ConfluenceService from '../../services/confluenceService';
 import SlackService from '../../services/slackService';
 
@@ -352,6 +353,25 @@ const ReleasePageCreator = () => {
 
     try {
       const confluenceService = new ConfluenceService(confluenceConfig);
+      
+      // CRITICAL FIX: Fetch Jira field metadata FIRST to ensure correct column names
+      console.log('🔍 Step 1: Fetching Jira field metadata for custom fields...');
+      message.info('🔍 Fetching field metadata to ensure correct column names...');
+      
+      const jiraApiService = new JiraApiService(jiraConfig);
+      const fieldMetadataResult = await jiraApiService.getFieldMetadata();
+      
+      let fieldMetadata = null;
+      if (fieldMetadataResult.success) {
+        fieldMetadata = fieldMetadataResult.data;
+        console.log('✅ Field metadata fetched successfully:');
+        console.log('  - customfield_10131:', fieldMetadata.fields?.customfield_10131?.name || 'NOT FOUND');
+        console.log('  - customfield_10202:', fieldMetadata.fields?.customfield_10202?.name || 'NOT FOUND');
+        message.success('✅ Field metadata loaded successfully');
+      } else {
+        console.warn('⚠️  Failed to fetch field metadata, using defaults:', fieldMetadataResult.error);
+        message.warning('⚠️  Could not fetch field names, using default field IDs');
+      }
 
       // Determine releases to process
       let releasesToProcess;
@@ -380,12 +400,16 @@ const ReleasePageCreator = () => {
         const currentChecklistTitle = isInBulkMode ? `Release checklist for the ${currentReleaseName}` : checklistTitle;
         
         // Create main release page
+        console.log(`🎨 Step 2: Generating page content for ${currentReleaseName}...`);
         message.info(`Creating main release page for ${currentReleaseName}...`);
         const mainPageTitle = `${currentReleaseName} Release - ${currentReleaseDateText}`;
+        
+        // CRITICAL FIX: Pass field metadata to generateMainPageContent
         const mainPageContent = ConfluenceService.generateMainPageContent(
           currentReleaseName,
           currentReleaseDateText,
-          currentJql
+          currentJql,
+          fieldMetadata  // ← NEW: Pass field metadata for column name mapping
         );
 
         let mainPageResult;

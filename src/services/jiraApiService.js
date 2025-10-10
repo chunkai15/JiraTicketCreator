@@ -274,6 +274,38 @@ export class JiraApiService {
       };
     }
   }
+
+  // Get Jira field metadata (including custom fields)
+  async getFieldMetadata() {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/jira/get-field-metadata`,
+        {
+          url: this.config.url,
+          email: this.config.email,
+          token: this.config.token
+        },
+        {
+          timeout: 15000
+        }
+      );
+      
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Failed to fetch field metadata:', error);
+      
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Failed to fetch field metadata',
+        data: {
+          fields: {}
+        }
+      };
+    }
+  }
 }
 
 export default JiraApiService;
