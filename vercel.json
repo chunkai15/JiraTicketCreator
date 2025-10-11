@@ -1,40 +1,23 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    },
-    {
-      "src": "server/server.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server/server.js"
+      "destination": "/api/[...slug]"
     },
     {
       "source": "/uploads/(.*)",
-      "destination": "/server/server.js"
+      "destination": "/api/[...slug]"
     },
     {
-      "source": "/((?!api|uploads|static|_next).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
-    "server/server.js": {
+    "api/[...slug].js": {
       "maxDuration": 30
     }
   }
