@@ -624,8 +624,26 @@ const upload = multer({
 });
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+const corsOptions = {
+  origin: isVercel ? [
+    'https://qa-toolhub-everfit.vercel.app',
+    'https://qa-toolhub-everfit-*.vercel.app',
+    /\.vercel\.app$/
+  ] : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']
+};
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
