@@ -45,10 +45,16 @@ VERCEL_URL=your-app-name.vercel.app
 - [ ] DNS records pointing to Vercel
 
 ### 3. Build Settings
-- Build Command: `npm run build`
-- Output Directory: `build`
-- Install Command: `npm install`
+- Build Command: `npm run build` (auto-detected from vercel.json)
+- Output Directory: `build` (auto-detected from vercel.json)
+- Install Command: `npm install` (auto-detected from vercel.json)
 - Node.js Version: 18.x (recommended)
+
+### 4. Serverless Functions
+- ✅ API routes configured in `api/` directory
+- ✅ Catch-all route handler: `api/[...slug].js`
+- ✅ Function timeout set to 30 seconds
+- ✅ Modern Vercel configuration (no deprecated v2 builds)
 
 ## Post-Deployment Verification
 
@@ -122,15 +128,35 @@ If issues occur after deployment:
 - **DevOps/Infrastructure**: [Contact]
 - **Product Owner**: [Contact]
 
+## Recent Fixes Applied
+
+### Deployment Configuration Updates (Oct 11, 2025)
+- ✅ **Fixed Vercel Configuration**: Migrated from deprecated v2 builds to modern configuration
+- ✅ **Serverless Functions**: Created proper `api/` directory structure
+- ✅ **Catch-all Routes**: Implemented `api/[...slug].js` for all API endpoints
+- ✅ **Static Assets**: Added homepage field for proper asset serving
+- ✅ **Build Process**: Verified successful build after configuration changes
+
+### Commit: `58d2afb`
+```
+fix: Update Vercel deployment configuration for modern serverless functions
+- Migrate from deprecated v2 builds to modern Vercel configuration
+- Create api/ directory with proper serverless function structure
+- Add catch-all route handler for API endpoints
+- Set homepage field for proper static asset serving
+- Optimize server.js export for Vercel runtime
+- Fix deployment compatibility issues
+```
+
 ## Notes
 
 - Current branch for production: `main`
-- Feature branch: `feature/ui-migration` (ready to merge)
-- Last deployment: [Date]
+- Last successful build: ✅ October 11, 2025
 - Version: 2.0
+- Deployment fixes applied: ✅ Ready for re-deployment
 
 ---
 
-**Status**: ✅ Ready for Production Deployment  
-**Last Updated**: October 11, 2025  
-**Reviewed By**: [Your Name]
+**Status**: ✅ Fixed and Ready for Production Deployment  
+**Last Updated**: October 11, 2025 23:45  
+**Deployment Issues**: ✅ Resolved
