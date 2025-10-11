@@ -1160,6 +1160,196 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Epic Search API - Search Epics on-demand
+app.post('/api/jira/search-epics', async (req, res) => {
+  try {
+    const { url, email, token, projectKey, searchTerm, maxResults = 20 } = req.body;
+    
+    console.log(`🔍 NON-JQL Epic Search: "${searchTerm}" in project ${projectKey}`);
+    
+    if (!url || !email || !token || !projectKey) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: url, email, token, projectKey' 
+      });
+    }
+
+    const baseURL = url.replace(/\/+$/, '');
+    const auth = { username: email, password: token };
+    
+    // APPROACH 1: NON-JQL Browse & Filter (Bypass 410 errors completely)
+    try {
+      console.log(`🔍 NON-JQL: Browse project issues and filter client-side`);
+      
+      // Get project issues using simple project browse (NO Epic JQL)
+      const browseResponse = await axios.get(
+        `${baseURL}/rest/api/2/search`,
+        {
+          params: {
+            // Simple project filter - NO Epic/issuetype JQL to avoid 410
+            jql: `project=${projectKey} ORDER BY created DESC`,
+            fields: 'id,key,summary,status,issuetype,created,updated,parent,subtasks',
+            maxResults: 300, // Browse more issues to find Epics
+            startAt: 0
+          },
+          auth,
+          timeout: 20000
+        }
+      );
+      
+      if (browseResponse.data && browseResponse.data.issues) {
+        console.log(`📋 Browsed ${browseResponse.data.issues.length} project issues`);
+        
+        // CLIENT-SIDE FILTERING for Epics (NO JQL)
+        let foundEpics = browseResponse.data.issues.filter(issue => {
+          const issueType = issue.fields.issuetype?.name?.toLowerCase() || '';
+          const statusName = issue.fields.status?.name || '';
+          const hierarchyLevel = issue.fields.issuetype?.hierarchyLevel || 0;
+          const hasSubtasks = issue.fields.subtasks && issue.fields.subtasks.length > 0;
+          const hasNoParent = !issue.fields.parent;
+          
+          // Epic detection criteria (client-side)
+          const isEpicLike = (
+            issueType.includes('epic') || 
+            issueType.includes('story') || 
+            issueType.includes('feature') ||
+            issueType.includes('initiative') ||
+            hierarchyLevel <= 1 ||
+            (hasSubtasks && hasNoParent)
+          );
+          
+          // Filter for "To Do" status
+          const isToDoStatus = statusName === 'To Do';
+          
+          return isEpicLike && isToDoStatus;
+        });
+        
+        console.log(`✅ Found ${foundEpics.length} "To Do" Epics via NON-JQL filtering`);
+        
+        // Apply search term filter if provided (client-side)
+        if (searchTerm && searchTerm.trim()) {
+          const term = searchTerm.trim().toLowerCase();
+          foundEpics = foundEpics.filter(issue => {
+            const summary = (issue.fields.summary || '').toLowerCase();
+            const key = (issue.key || '').toLowerCase();
+            
+            return summary.includes(term) || key.includes(term);
+          });
+          console.log(`🔍 After search filter "${searchTerm}": ${foundEpics.length} Epics`);
+        }
+        
+        // Limit results and format
+        const limitedEpics = foundEpics.slice(0, maxResults);
+        const epics = limitedEpics.map(issue => ({
+          key: issue.key,
+          summary: issue.fields.summary || 'No summary',
+          status: issue.fields.status?.name || 'Unknown',
+          created: issue.fields.created,
+          updated: issue.fields.updated,
+          issueType: issue.fields.issuetype?.name || 'Unknown'
+        }));
+        
+        console.log(`✅ SUCCESS: Returning ${epics.length} Epics (NON-JQL method)`);
+        console.log(`📋 Epic keys:`, epics.map(e => `${e.key} (${e.status})`).slice(0, 5));
+        
+        return res.json({
+          success: true,
+          epics: epics,
+          total: foundEpics.length,
+          method: 'NON-JQL Browse & Filter',
+          searchTerm: searchTerm || ''
+        });
+      }
+    } catch (browseErr) {
+      console.warn(`❌ NON-JQL browse failed: ${browseErr.response?.status} - ${browseErr.message}`);
+    }
+    
+    // APPROACH 2: Known Epic Keys Probing (Fallback)
+    try {
+      console.log(`🔍 Fallback: Probing known Epic keys`);
+      
+      const knownEpicKeys = [
+        'MP-7', 'MP-11', 'MP-12', 'MP-15', 'MP-16', 'MP-50', 
+        'MP-91', 'MP-92', 'MP-128', 'MP-204', 'MP-275', 'MP-600', 'MP-3100'
+      ];
+      
+      const epicPromises = knownEpicKeys.map(async (key) => {
+        try {
+          const issueResponse = await axios.get(
+            `${baseURL}/rest/api/2/issue/${key}?fields=id,key,summary,status,issuetype,created`,
+            { auth, timeout: 5000 }
+          );
+          
+          if (issueResponse.data && issueResponse.data.fields) {
+            const issue = issueResponse.data;
+            const statusName = issue.fields.status?.name || '';
+            const issueType = issue.fields.issuetype?.name?.toLowerCase() || '';
+            
+            // Only return "To Do" Epics
+            if (statusName === 'To Do' && issueType.includes('epic')) {
+              return {
+                key: issue.key,
+                summary: issue.fields.summary || 'No summary',
+                status: statusName,
+                created: issue.fields.created,
+                issueType: issue.fields.issuetype?.name || 'Epic'
+              };
+            }
+          }
+          return null;
+        } catch (err) {
+          return null;
+        }
+      });
+      
+      const epicResults = await Promise.all(epicPromises);
+      const validEpics = epicResults.filter(epic => epic !== null);
+      
+      if (validEpics.length > 0) {
+        console.log(`✅ Found ${validEpics.length} Epics via known keys probing`);
+        
+        // Apply search filter if needed
+        let filteredEpics = validEpics;
+        if (searchTerm && searchTerm.trim()) {
+          const term = searchTerm.trim().toLowerCase();
+          filteredEpics = validEpics.filter(epic => {
+            return epic.summary.toLowerCase().includes(term) || 
+                   epic.key.toLowerCase().includes(term);
+          });
+        }
+        
+        return res.json({
+          success: true,
+          epics: filteredEpics.slice(0, maxResults),
+          total: filteredEpics.length,
+          method: 'Known Epic Keys Probing',
+          searchTerm: searchTerm || ''
+        });
+      }
+    } catch (probeErr) {
+      console.warn(`❌ Known keys probing failed: ${probeErr.message}`);
+    }
+    
+    // If all approaches fail, return empty results
+    console.warn(`⚠️ All Epic search approaches failed - returning empty results`);
+    return res.json({
+      success: true,
+      epics: [],
+      total: 0,
+      method: 'No results found',
+      searchTerm: searchTerm || ''
+    });
+    
+  } catch (error) {
+    console.error('Epic search error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to search Epics', 
+      details: error.message 
+    });
+  }
+});
+
 // Debug endpoint to show spaces from startup
 let cachedSpaces = [];
 app.get('/api/debug/spaces', (req, res) => {
@@ -1397,14 +1587,202 @@ app.post('/api/jira/project-metadata', async (req, res) => {
         }
       })(),
 
-      // Get project epics (parent issues)
+      // Get project parent issues (epics) - REAL DATA APPROACHES
+      (async () => {
+        try {
+          console.log(`🔍 Fetching REAL parent issues (epics) for project: ${projectKey}`);
+          
+           // APPROACH 1: Minimal Epic Loading - Load only recent 10 Epics for initial display
+           try {
+             console.log(`🔍 Approach 1: Minimal Epic Loading - Load recent 10 "To Do" Epics for initial display`);
+             
+             // Simple JQL to get recent "To Do" Epics (minimal load)
+             const minimalJql = `project="${projectKey}" AND issuetype="Epic" AND status="To Do" ORDER BY created DESC`;
+             
+             try {
+               const minimalResponse = await axios.get(
+                 `${baseURL}/rest/api/2/search`,
+                 {
+                   params: {
+                     jql: minimalJql,
+                     fields: 'id,key,summary,status,issuetype,created',
+                     maxResults: 10 // Only load 10 recent Epics
+                   },
+                   auth,
+                   timeout: 10000
+                 }
+               );
+               
+               if (minimalResponse.data && minimalResponse.data.issues && minimalResponse.data.issues.length > 0) {
+                 const recentEpics = minimalResponse.data.issues;
+                 console.log(`✅ SUCCESS: Loaded ${recentEpics.length} recent "To Do" Epics for initial display`);
+                 console.log(`📋 Recent Epic keys:`, recentEpics.map(issue => `${issue.key} (${issue.fields.status.name})`));
+                 console.log(`💡 Note: Full Epic search available via /api/jira/search-epics endpoint`);
+                 
+                 return { data: { issues: recentEpics } };
+               }
+             } catch (minimalErr) {
+               console.warn(`❌ Minimal Epic loading failed: ${minimalErr.response?.status} - ${minimalErr.message}`);
+             }
+             
+           } catch (err) {
+             console.warn(`❌ Minimal Epic loading completely failed: ${err.message}`);
+           }
+          
+          // APPROACH 2: Parent Field Query (Next-gen Projects)
+          try {
+            console.log(`🔍 Approach 2: Parent field hierarchy query`);
+            
+            // First, get issues that have children (are parents)
+            const parentResponse = await axios.get(
+              `${baseURL}/rest/api/3/search?jql=${encodeURIComponent(`project=${projectKey} AND parent is EMPTY`)}&fields=id,key,summary,status,issuetype,parent&maxResults=50`,
+              { auth, timeout: 15000 }
+            );
+            
+            if (parentResponse.data && parentResponse.data.issues && parentResponse.data.issues.length > 0) {
+              // Filter for Epic-like issues
+              const parentIssues = parentResponse.data.issues.filter(issue => {
+                const issueType = issue.fields.issuetype?.name?.toLowerCase() || '';
+                const hierarchyLevel = issue.fields.issuetype?.hierarchyLevel || 0;
+                return (
+                  issueType.includes('epic') || 
+                  issueType.includes('story') || 
+                  issueType.includes('feature') ||
+                  hierarchyLevel <= 1
+                );
+              });
+              
+              if (parentIssues.length > 0) {
+                console.log(`✅ Found ${parentIssues.length} parent issues via hierarchy`);
+                return { data: { issues: parentIssues } };
+              }
+            }
+          } catch (err) {
+            console.warn(`❌ Parent field query failed: ${err.response?.status} - ${err.message}`);
+          }
+          
+          // APPROACH 3: Epic Link Custom Field Query
+          try {
+            console.log(`🔍 Approach 3: Epic Link custom field approach`);
+            
+            // First get field definitions
+            const fieldsResponse = await axios.get(
+              `${baseURL}/rest/api/2/field`,
+              { auth, timeout: 10000 }
+            );
+            
+            if (fieldsResponse.data && Array.isArray(fieldsResponse.data)) {
+              const epicLinkField = fieldsResponse.data.find(field => 
+                field.name && (
+                  field.name.toLowerCase().includes('epic link') ||
+                  field.schema?.custom === 'com.pyxis.greenhopper.jira:gh-epic-link'
+                )
+              );
+              
+              if (epicLinkField) {
+                console.log(`✅ Found Epic Link field: ${epicLinkField.id}`);
+                
+                // Get all issues and find unique Epic Link values
+                const allIssuesResponse = await axios.get(
+                  `${baseURL}/rest/api/3/search?jql=${encodeURIComponent(`project=${projectKey}`)}&fields=${epicLinkField.id}&maxResults=100`,
+                  { auth, timeout: 15000 }
+                );
+                
+                if (allIssuesResponse.data && allIssuesResponse.data.issues) {
+                  const epicKeys = [...new Set(
+                    allIssuesResponse.data.issues
+                      .map(issue => issue.fields[epicLinkField.id])
+                      .filter(epicKey => epicKey && typeof epicKey === 'string')
+                  )];
+                  
+                  if (epicKeys.length > 0) {
+                    console.log(`✅ Found ${epicKeys.length} unique Epic keys via Epic Link field`);
+                    
+                    // Fetch Epic details
+                    const epicPromises = epicKeys.slice(0, 20).map(epicKey => // Limit to 20
       axios.get(
-        `${baseURL}/rest/api/3/search?jql=project=${projectKey} AND issueType=Epic AND status!=Done ORDER BY created DESC&maxResults=20`,
+                        `${baseURL}/rest/api/2/issue/${epicKey}?fields=id,key,summary,status,issuetype`,
+                        { auth, timeout: 5000 }
+                      ).catch(err => null) // Handle individual failures
+                    );
+                    
+                    const epicResults = await Promise.all(epicPromises);
+                    const validEpics = epicResults
+                      .filter(result => result && result.data)
+                      .map(result => result.data);
+                    
+                    if (validEpics.length > 0) {
+                      console.log(`✅ Retrieved ${validEpics.length} Epic details`);
+                      return { data: { issues: validEpics } };
+                    }
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`❌ Epic Link field approach failed: ${err.response?.status} - ${err.message}`);
+          }
+          
+          // APPROACH 4: Issue Type Hierarchy Analysis
+          try {
+            console.log(`🔍 Approach 4: Issue type hierarchy analysis`);
+            
+            const projectResponse = await axios.get(
+              `${baseURL}/rest/api/3/project/${projectKey}`,
         { auth, timeout: 10000 }
-      ).catch(err => {
-        console.warn('Failed to fetch epics:', err.message);
+            );
+            
+            if (projectResponse.data && projectResponse.data.issueTypes) {
+              const parentTypes = projectResponse.data.issueTypes.filter(type => {
+                const name = type.name.toLowerCase();
+                return (
+                  name.includes('epic') || 
+                  name.includes('story') || 
+                  name.includes('feature') ||
+                  type.hierarchyLevel <= 1
+                );
+              });
+              
+              console.log(`📋 Found ${parentTypes.length} parent-level issue types`);
+              
+              if (parentTypes.length > 0) {
+                // Try to get recent issues of these types using individual queries
+                for (const type of parentTypes) {
+                  try {
+                    const typeResponse = await axios.get(
+                      `${baseURL}/rest/api/3/search?jql=${encodeURIComponent(`project=${projectKey} AND issuetype="${type.name}" ORDER BY created DESC`)}&fields=id,key,summary,status,issuetype&maxResults=20`,
+                      { auth, timeout: 10000 }
+                    );
+                    
+                    if (typeResponse.data && typeResponse.data.issues && typeResponse.data.issues.length > 0) {
+                      console.log(`✅ Found ${typeResponse.data.issues.length} issues of type ${type.name}`);
+                      return { data: { issues: typeResponse.data.issues } };
+                    }
+                  } catch (typeErr) {
+                    console.warn(`❌ Type ${type.name} query failed: ${typeErr.response?.status}`);
+                    continue;
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`❌ Issue type hierarchy failed: ${err.response?.status} - ${err.message}`);
+          }
+          
+           // APPROACH 5: REMOVED - Comprehensive probing was too slow (948 API calls)
+           // Epic search is now handled via /api/jira/search-epics endpoint for on-demand searching
+          
+          // APPROACH 6 & 7: REMOVED for performance
+          // Use /api/jira/search-epics for on-demand Epic search
+          
+          console.warn('⚠️ All real data approaches failed, no parent issues found');
         return { data: { issues: [] } };
-      })
+          
+        } catch (err) {
+          console.error('💥 Epic fetching completely failed:', err.message);
+          return { data: { issues: [] } };
+        }
+      })()
     ]);
 
     // Process sprints
@@ -1499,8 +1877,8 @@ app.post('/api/jira/project-metadata', async (req, res) => {
     const epics = epicsResponse.data.issues?.map(epic => ({
       id: epic.id,
       key: epic.key,
-      summary: epic.fields.summary,
-      status: epic.fields.status.name,
+      summary: epic.fields?.summary || epic.summary || 'No summary',
+      status: epic.fields?.status?.name || epic.status?.name || 'Unknown',
       isDefault: false
     })) || [];
 
@@ -2774,10 +3152,14 @@ app.post('/api/jira/get-issue-status-breakdown', async (req, res) => {
 
     // Count issues by status
     const statusBreakdown = {};
+    const issueTypeBreakdown = {};
+    
     issues.forEach(issue => {
       const statusName = issue.fields?.status?.name || 'Unknown';
       const statusCategory = issue.fields?.status?.statusCategory?.name || 'Unknown';
+      const issueTypeName = issue.fields?.issuetype?.name || 'Unknown';
       
+      // Status breakdown
       if (!statusBreakdown[statusName]) {
         statusBreakdown[statusName] = {
           count: 0,
@@ -2785,17 +3167,29 @@ app.post('/api/jira/get-issue-status-breakdown', async (req, res) => {
         };
       }
       statusBreakdown[statusName].count++;
+      
+      // Issue type breakdown
+      if (!issueTypeBreakdown[issueTypeName]) {
+        issueTypeBreakdown[issueTypeName] = 0;
+      }
+      issueTypeBreakdown[issueTypeName]++;
     });
 
-    console.log(`✅ Found ${totalIssues} issues with status breakdown:`, statusBreakdown);
+    // Convert status breakdown to simple count format for frontend compatibility
+    const simpleStatusBreakdown = {};
+    Object.entries(statusBreakdown).forEach(([status, data]) => {
+      simpleStatusBreakdown[status] = data.count;
+    });
+
+    console.log(`✅ Found ${totalIssues} issues with status breakdown:`, simpleStatusBreakdown);
+    console.log(`✅ Issue type breakdown:`, issueTypeBreakdown);
 
     res.json({
       success: true,
-      data: {
         totalIssues,
-        statusBreakdown,
+      statusBreakdown: simpleStatusBreakdown,
+      issueTypeBreakdown,
         jql
-      }
     });
 
   } catch (error) {

@@ -145,6 +145,79 @@ const ConfigService = {
     };
   },
 
+  // Save Confluence configuration
+  saveConfluenceConfig(config) {
+    try {
+      const configToSave = {
+        ...config,
+        // Encrypt sensitive fields
+        token: config.token ? this.encrypt(config.token) : '',
+        email: config.email ? this.encrypt(config.email) : '',
+        // Keep non-sensitive fields as plain text
+        url: config.url || '',
+        spaceKey: config.spaceKey || '',
+        parentPageId: config.parentPageId || '',
+        // Add metadata
+        savedAt: new Date().toISOString(),
+        version: '1.0'
+      };
+
+      localStorage.setItem('confluence-config', JSON.stringify(configToSave));
+      console.log('Confluence configuration saved successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to save Confluence configuration:', error);
+      return false;
+    }
+  },
+
+  // Load Confluence configuration
+  loadConfluenceConfig() {
+    try {
+      const savedConfig = localStorage.getItem('confluence-config');
+      if (!savedConfig) {
+        return null;
+      }
+
+      const config = JSON.parse(savedConfig);
+      
+      // Decrypt sensitive fields
+      return {
+        ...config,
+        token: config.token ? this.decrypt(config.token) : '',
+        email: config.email ? this.decrypt(config.email) : '',
+        url: config.url || '',
+        spaceKey: config.spaceKey || '',
+        parentPageId: config.parentPageId || ''
+      };
+    } catch (error) {
+      console.error('Failed to load Confluence configuration:', error);
+      return null;
+    }
+  },
+
+  // Check if Confluence configuration exists
+  hasConfluenceConfig() {
+    try {
+      const savedConfig = localStorage.getItem('confluence-config');
+      return !!savedConfig;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  // Clear Confluence configuration
+  clearConfluenceConfig() {
+    try {
+      localStorage.removeItem('confluence-config');
+      console.log('Confluence configuration cleared');
+      return true;
+    } catch (error) {
+      console.error('Failed to clear Confluence configuration:', error);
+      return false;
+    }
+  },
+
   // Test configuration by making a simple API call
   async testJiraConfig(config = null) {
     const testConfig = config || this.loadJiraConfig();

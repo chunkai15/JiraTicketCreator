@@ -39,10 +39,17 @@ export class SlackService {
     
     let messageText = 'Hi team, this is release checklist';
     
-    // Add release date - get from releases if in bulk mode
+    // Add release date - get from pages if available (they contain formatted release date)
     let displayDate = releaseDate;
-    if (selectedReleases && selectedReleases.length > 0 && releases) {
-      // In bulk mode, get the release date from the first selected release
+    if (pages && pages.length > 0) {
+      // Extract date from the first page title (format: "Release Name - Oct 16, 2025")
+      const firstPageTitle = pages[0].title;
+      const dateMatch = firstPageTitle.match(/ - (.+, \d{4})$/);
+      if (dateMatch) {
+        displayDate = dateMatch[1];
+      }
+    } else if (selectedReleases && selectedReleases.length > 0 && releases) {
+      // Fallback: get from releases if in bulk mode
       const firstRelease = releases.find(r => r.id === selectedReleases[0]);
       if (firstRelease && firstRelease.releaseDate) {
         // Format the date nicely
@@ -76,7 +83,8 @@ export class SlackService {
             
             releasePagesForThisRelease.forEach(page => {
               const url = page.shortUrl || page.url;
-              messageText += `• <${url}|${page.title}> (${page.type === 'main' ? 'Main Page' : 'Checklist'})\n`;
+              const pageTypeLabel = page.type === 'main' ? 'Main Page' : 'Checklist';
+              messageText += `• <${url}|${page.title}> (${pageTypeLabel})\n`;
             });
           }
         }
@@ -89,7 +97,8 @@ export class SlackService {
       if (pages && pages.length > 0) {
         pages.forEach(page => {
           const url = page.shortUrl || page.url;
-          messageText += `• <${url}|${page.title}> (${page.type === 'main' ? 'Main Page' : 'Checklist'})\n`;
+          const pageTypeLabel = page.type === 'main' ? 'Main Page' : 'Checklist';
+          messageText += `• <${url}|${page.title}> (${pageTypeLabel})\n`;
         });
       }
     }

@@ -1,16 +1,17 @@
-# 🎯 Jira Ticket Creator Tool
+# 🎯 Jira Tool Suite
 
-A React-based tool for parsing unstructured text into Jira tickets using intelligent regex patterns. Perfect for QA engineers and development teams who need to quickly create multiple tickets from bug reports, feature requests, or test case descriptions.
+A modern, accessible web application for managing Jira tickets and Confluence release pages with advanced automation features. Built with React, Tailwind CSS, and comprehensive accessibility support.
 
 ## ✨ Features
 
-- **Smart Text Parsing**: Regex-based extraction of ticket information from unstructured text
-- **Bulk Processing**: Handle multiple tickets at once with progress tracking
-- **Interactive Preview**: Edit and validate parsed data before creation
-- **Secure Jira Integration**: Direct integration with Jira Cloud API with encrypted credential storage
-- **File Attachments**: Upload and attach files to tickets during creation
-- **Demo Mode**: Test the tool without real Jira connection
-- **Translation Support**: Built-in Vietnamese to English translation
+- **🎫 Smart Ticket Creation**: Bulk create Jira tickets with intelligent text parsing
+- **🚀 Release Management**: Generate Confluence release pages automatically  
+- **⌨️ Keyboard Navigation**: Full keyboard accessibility with shortcuts
+- **🌙 Dark Mode**: Beautiful light/dark theme switching
+- **♿ Accessibility**: WCAG 2.1 AA compliant
+- **🎬 Smooth Animations**: Polished UI with Framer Motion
+- **⚡ Performance**: Optimized with lazy loading and code splitting
+- **🛡️ Error Handling**: Robust error boundaries and recovery
 
 ## 🚀 Quick Start
 
@@ -48,201 +49,239 @@ To connect with your Jira instance, you need to provide the following informatio
 | **Jira URL** | Your Jira instance URL | `https://your-company.atlassian.net` | ✅ Yes |
 | **Email** | Your Atlassian account email | `your-email@company.com` | ✅ Yes |
 | **API Token** | Personal API token for authentication | `ATATT3xFfGF0...` (72+ characters) | ✅ Yes |
-| **Project Key** | Target project key in uppercase | `MP`, `DEV`, `TEST` | ✅ Yes |
+| **Project Key** | Target project identifier | `PROJ` or `DEV` | ✅ Yes |
+| **Issue Type** | Default ticket type | `Bug`, `Task`, `Story` | ✅ Yes |
 
-#### 🔐 How to Get Your Jira API Token
+#### Getting Your API Token
+1. Go to [Atlassian Account Settings](https://id.atlassian.com/manage-profile/security/api-tokens)
+2. Click **Create API token**
+3. Give it a descriptive name (e.g., "Jira Tool Suite")
+4. Copy the generated token (save it securely!)
 
-1. **Visit Atlassian API Tokens page**:
-   - Go to [https://id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
-   - Log in with your Atlassian account
+### Step 2: Create Tickets
 
-2. **Create new API token**:
-   - Click **"Create API token"** button
-   - Enter a label (e.g., "Jira Tool", "Ticket Creator")
-   - Click **"Create"**
+#### Smart Text Parsing
+The tool can intelligently parse unstructured text into Jira tickets:
 
-3. **Copy and save the token**:
-   - **Important**: Copy the token immediately (you won't see it again)
-   - Store it securely - the app will encrypt it automatically
-   - Token format: `ATATT3xFfGF0...` (usually 72+ characters)
-
-#### 🏢 Finding Your Jira URL and Project Key
-
-**Jira URL Format**:
 ```
-https://your-company.atlassian.net
-```
-- Replace `your-company` with your actual Atlassian subdomain
-- Always include `https://`
-- Don't add trailing slash
+Bug: Login page crashes on mobile
+- Steps: Open app, go to login, enter credentials
+- Expected: Should login successfully  
+- Actual: App crashes with white screen
+- Priority: High
 
-**Project Key**:
-- Found in your Jira project settings
-- Usually 2-5 uppercase letters (e.g., `MP`, `DEV`, `PROJ`)
-- Visible in issue keys like `MP-123`, `DEV-456`
-
-#### ⚙️ Configuration Steps
-
-1. **Open the application** at http://localhost:3000
-2. **Navigate to Jira Configuration section**
-3. **Fill in the required fields**:
-   - Jira URL: Your Atlassian instance URL
-   - Email: Your login email
-   - API Token: The token you created above
-   - Project Key: Target project identifier
-4. **Test the connection** using "Test Connection" button
-5. **Save configuration** - credentials are encrypted locally
-
-#### 🔄 Updating Configuration
-
-To change your configuration:
-1. Click **"Clear"** button to remove saved credentials
-2. Enter new information
-3. Test and save the updated configuration
-
----
-
-### Step 2: Input & Parse Text
-1. Enter bug reports, feature requests, or task descriptions
-2. Add multiple inputs for bulk processing
-3. Click "Parse Tickets" to extract structured data
-
-### Step 3: Preview & Edit
-1. Review parsed ticket information in the table
-2. Edit any fields that need correction
-3. Select/deselect tickets for creation
-
-### Step 4: Create Tickets
-1. Set metadata (sprint, assignee, fix version)
-2. Create selected tickets in Jira
-3. View results and export if needed
-
-## 🎯 Supported Text Patterns
-
-The parser recognizes common patterns:
-
-**Bug Reports:**
-```
-Bug: Login fails on mobile app
-Environment: iPhone 14, iOS 16.5
-Priority: High
-Steps:
-1. Open the app
-2. Enter credentials
-3. Tap login button
-Expected: User logs in successfully
-Actual: Error message appears
-```
-
-**Feature Requests:**
-```
 Feature: Add dark mode toggle
-Priority: Medium
-Definition of Done:
-- Toggle switch in settings
-- Dark theme for all components
-- User preference persistence
+- Description: Users want dark mode option
+- Acceptance: Toggle in settings, persists across sessions
+- Priority: Medium
 ```
 
-## 🏗️ Technical Architecture
+#### Supported Formats
+- **Bug Reports**: Automatic detection of steps, expected/actual results
+- **Feature Requests**: Description and acceptance criteria parsing
+- **Test Cases**: Step-by-step test procedures
+- **Mixed Content**: Multiple ticket types in one input
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend       │    │   Jira Cloud    │
-│   (React)       │◄──►│   Proxy         │◄──►│   REST API      │
-│   Port: 3000    │    │   (Express)     │    │   atlassian.net │
-└─────────────────┘    │   Port: 3001    │    └─────────────────┘
-                       └─────────────────┘
-```
+### Step 3: Review & Create
+- **Live Preview**: See parsed tickets before creation
+- **Edit Inline**: Modify any field directly in the preview
+- **Bulk Actions**: Create all tickets at once or individually
+- **Progress Tracking**: Real-time creation status
 
-### Project Structure
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+1` | Go to Tool Hub |
+| `Ctrl+2` | Go to Ticket Creator |
+| `Ctrl+3` | Go to Release Creator |
+| `Ctrl+4` | Go to Settings |
+| `Ctrl+/` | Show keyboard shortcuts |
+| `Ctrl+Shift+D` | Toggle dark mode |
+| `Ctrl+N` | Create new (context dependent) |
+| `Ctrl+Enter` | Submit form/create tickets |
+| `Escape` | Close modal/cancel action |
+
+## 🏗️ Project Structure
+
 ```
 JiraTool/
 ├── src/
-│   ├── components/          # React components
-│   ├── services/           # API services
-│   ├── utils/              # Text parser
-│   └── App.js              # Main application
-├── server/
-│   └── server.js           # Express proxy server
-├── uploads/                # File storage
-└── start-full.sh          # Startup script
+│   ├── pages/              # Main application pages
+│   │   ├── ToolHub.jsx     # Dashboard/home page
+│   │   ├── TicketCreator.jsx # Ticket creation tool
+│   │   ├── ReleaseCreator.jsx # Release page generator
+│   │   └── Settings.jsx    # Configuration settings
+│   │
+│   ├── components/
+│   │   ├── layout/         # Layout components
+│   │   ├── ui/             # Reusable UI components
+│   │   └── features/       # Feature-specific components
+│   │
+│   ├── hooks/              # Custom React hooks
+│   ├── services/           # API and external services
+│   ├── lib/                # Utilities and helpers
+│   └── styles/             # Global styles
+│
+├── server/                 # Express.js backend
+├── public/                 # Static assets
+└── docs/                   # Documentation
 ```
 
-## 🛠️ Development
+For detailed structure information, see [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).
 
-### Available Scripts
+## 🎨 UI/UX Features
+
+### Modern Design System
+- **Tailwind CSS**: Utility-first styling
+- **shadcn/ui**: High-quality component library
+- **Framer Motion**: Smooth animations and transitions
+- **Radix UI**: Accessible component primitives
+
+### Accessibility (WCAG 2.1 AA)
+- **Screen Reader Support**: Full ARIA implementation
+- **Keyboard Navigation**: Complete keyboard accessibility
+- **Focus Management**: Proper focus trapping and flow
+- **Color Contrast**: Meets AA standards
+- **Reduced Motion**: Respects user preferences
+
+### Performance
+- **Code Splitting**: Lazy-loaded pages and components
+- **Virtual Scrolling**: Efficient large list rendering
+- **Debounced Inputs**: Optimized search and API calls
+- **Error Boundaries**: Graceful error handling
+
+## 🔧 Configuration
+
+### Environment Variables
+Create a `.env` file in the root directory:
+
+```env
+# Jira Configuration
+REACT_APP_JIRA_URL=https://your-company.atlassian.net
+REACT_APP_JIRA_EMAIL=your-email@company.com
+REACT_APP_JIRA_API_TOKEN=your-api-token
+
+# Optional: Confluence Configuration
+REACT_APP_CONFLUENCE_URL=https://your-company.atlassian.net/wiki
+REACT_APP_CONFLUENCE_SPACE_KEY=your-space-key
+
+# Optional: Slack Integration
+REACT_APP_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+```
+
+### Advanced Configuration
+- **Custom Parsing Rules**: Modify text parsing patterns
+- **Field Mappings**: Map parsed fields to Jira fields
+- **Templates**: Create reusable ticket templates
+- **Automation**: Set up automated workflows
+
+## 🚀 Development
+
+### Development Scripts
 ```bash
-npm start              # Frontend only (port 3000)
-npm run server         # Backend only (port 3001)
-npm run dev            # Both frontend and backend
-./start-full.sh        # Full setup with checks
-npm test               # Run tests
+npm start              # Start frontend only
+npm run build          # Build for production
+./start-full.sh        # Start full-stack development
 ```
 
-### Adding New Parsing Patterns
-Edit `src/utils/textParser.js`:
+### Code Quality
+- **ESLint**: Code linting and formatting
+- **Prettier**: Code formatting (if configured)
+- **TypeScript Ready**: JSDoc comments for better IntelliSense
 
-```javascript
-static extractNewPattern(text) {
-  const pattern = /your-regex-pattern/i;
-  const match = text.match(pattern);
-  return match ? match[1].trim() : '';
-}
+### Testing
+```bash
+npm test               # Run test suite
+npm run test:coverage  # Run tests with coverage
 ```
 
-## 🐛 Common Issues
+## 📊 Analytics & Monitoring
 
-**Connection Issues:**
-- Ensure backend server is running on port 3001
-- Check Jira URL format: `https://yourcompany.atlassian.net`
-- Verify API token has proper permissions
+### Performance Monitoring
+- **Vercel Analytics**: Page load times and user interactions
+- **Speed Insights**: Core Web Vitals tracking
+- **Error Boundaries**: Error tracking and reporting
 
-**Parsing Issues:**
-- Use explicit keywords: "Bug:", "Feature:", "Task:"
-- Check text format matches supported patterns
-- Try sample data to verify parser functionality
+### User Experience Metrics
+- **Keyboard Usage**: Track shortcut adoption
+- **Feature Usage**: Monitor tool utilization
+- **Error Rates**: Track and improve reliability
 
-**File Upload Issues:**
-- Check file size (10MB limit)
-- Verify supported file types
-- Ensure backend server is running
+## 🔒 Security
+
+### API Security
+- **Environment Variables**: Sensitive data protection
+- **CORS Configuration**: Proper cross-origin handling
+- **Input Validation**: Client and server-side validation
+- **Error Handling**: No sensitive info in error messages
+
+### Data Privacy
+- **Local Storage**: Minimal data persistence
+- **No Tracking**: Privacy-focused analytics
+- **Secure Transmission**: HTTPS for all API calls
 
 ## 🤝 Contributing
 
+### Development Workflow
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes and test thoroughly
-4. Submit a pull request
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-### Areas for Contribution
-- **Text Parsing**: Add new language support or improve patterns
-- **UI/UX**: Enhance user interface and experience
-- **Integrations**: Add support for other project management tools
-- **Testing**: Increase test coverage
+### Code Standards
+- Follow existing code style
+- Add JSDoc comments for new functions
+- Ensure accessibility compliance
+- Test on multiple browsers
+
+## 📚 Documentation
+
+- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - Detailed project organization
+- [PHASE_4_IMPLEMENTATION_SUMMARY.md](./PHASE_4_IMPLEMENTATION_SUMMARY.md) - Recent enhancements
+- [API Documentation](./server/README.md) - Backend API reference
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Connection Problems
+- Verify Jira URL format (include https://)
+- Check API token validity (72+ characters)
+- Ensure email matches Atlassian account
+
+#### Performance Issues
+- Clear browser cache
+- Check network connectivity
+- Verify server is running on port 3001
+
+#### UI Issues
+- Try refreshing the page
+- Check browser console for errors
+- Ensure JavaScript is enabled
+
+### Getting Help
+1. Check the [Issues](./issues) page
+2. Review documentation
+3. Contact the development team
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **shadcn/ui** for the excellent component library
+- **Tailwind CSS** for the utility-first CSS framework
+- **Framer Motion** for smooth animations
+- **Radix UI** for accessible primitives
+- **Vercel** for hosting and analytics
 
 ---
 
-## 🎯 Quick Reference
+**Version**: 2.0  
+**Last Updated**: October 11, 2025  
+**Status**: ✅ Production Ready
 
-### Essential Commands
-```bash
-./start-full.sh        # Start full application
-npm run dev            # Development mode
-npm test               # Run tests
-```
-
-### Key Features
-- Smart text parsing with regex patterns
-- Bulk ticket creation with progress tracking
-- Secure credential storage with AES-256 encryption
-- File attachment support
-- Real-time Jira integration
-
-**Happy ticket creating! 🎯**
-
-*Built with ❤️ for QA engineers and development teams.*
+For technical details and architecture information, see [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).

@@ -181,6 +181,114 @@ export class ConfluenceService {
     }
   }
 
+  // Create complete release page (main page + checklist sub-page)
+  async createReleasePage({ releaseName, releaseDate, projectKey, spaceKey, parentPageId }) {
+    try {
+      console.log('🚀 Creating release page for:', releaseName);
+      
+      // Step 1: Fetch Jira field metadata for proper column names
+      let fieldMetadata = null;
+      try {
+        console.log('🔍 Fetching Jira field metadata...');
+        const fieldResponse = await axios.post(
+          `${API_BASE_URL}/jira/get-field-metadata`,
+          {
+            url: this.config.url.replace('/wiki', ''), // Remove /wiki for Jira API
+            email: this.config.email,
+            token: this.config.token
+          },
+          {
+            timeout: 10000
+          }
+        );
+        
+        if (fieldResponse.data.success) {
+          fieldMetadata = fieldResponse.data;
+          console.log('✅ Field metadata fetched successfully');
+        } else {
+          console.warn('⚠️ Failed to fetch field metadata:', fieldResponse.data.error);
+        }
+      } catch (error) {
+        console.warn('⚠️ Field metadata fetch failed, using default field IDs:', error.message);
+      }
+      
+      // Step 2: Generate JQL for this release
+      const jql = `project = "${projectKey}" AND fixVersion = "${releaseName}" AND issuetype != Sub-task`;
+      console.log('📊 JQL Query:', jql);
+      
+      // Step 3: Generate main page content with Jira issues macro and field metadata
+      const releaseDateText = releaseDate ? new Date(releaseDate).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      }) : 'TBD';
+      const mainPageTitle = `${releaseName} Release - ${releaseDateText}`;
+      const mainPageContent = ConfluenceService.generateMainPageContent(releaseName, releaseDateText, jql, fieldMetadata);
+      
+      console.log('📄 Creating main page:', mainPageTitle);
+      
+      // Step 4: Create main release page
+      const mainPageResult = await this.createPage(spaceKey, parentPageId, mainPageTitle, mainPageContent);
+      
+      if (!mainPageResult.success) {
+        console.error('❌ Failed to create main page:', mainPageResult.error);
+        return {
+          success: false,
+          error: `Failed to create main page: ${mainPageResult.error}`,
+          pageUrl: null
+        };
+      }
+      
+      const mainPageId = mainPageResult.data.page?.id;
+      const mainPageUrl = mainPageResult.data.page?.url || mainPageResult.data.page?._links?.webui;
+      
+      console.log('✅ Main page created successfully:', mainPageId);
+      
+      // Step 5: Create checklist sub-page
+      const checklistTitle = `${releaseName} Release Checklist - ${releaseDateText}`;
+      const checklistContent = ConfluenceService.generateChecklistContent(releaseName);
+      
+      console.log('📋 Creating checklist sub-page:', checklistTitle);
+      
+      const subPageResult = await this.createSubPage(spaceKey, mainPageId, checklistTitle, checklistContent);
+      
+      if (!subPageResult.success) {
+        console.warn('⚠️ Main page created but checklist failed:', subPageResult.error);
+        // Return success for main page even if checklist fails
+        return {
+          success: true,
+          pageUrl: mainPageUrl,
+          mainPageId: mainPageId,
+          mainPageUrl: mainPageUrl,
+          checklistError: subPageResult.error
+        };
+      }
+      
+      const checklistPageId = subPageResult.data.page?.id;
+      const checklistPageUrl = subPageResult.data.page?.url || subPageResult.data.page?._links?.webui;
+      
+      console.log('✅ Checklist sub-page created successfully:', checklistPageId);
+      
+      // Step 6: Return success with both page URLs
+      return {
+        success: true,
+        pageUrl: mainPageUrl, // Primary URL for the main page
+        mainPageId: mainPageId,
+        mainPageUrl: mainPageUrl,
+        checklistPageId: checklistPageId,
+        checklistPageUrl: checklistPageUrl
+      };
+      
+    } catch (error) {
+      console.error('💥 Error creating release page:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to create release page',
+        pageUrl: null
+      };
+    }
+  }
+
   // Generate Jira Issues macro content for Confluence
   // CRITICAL FIX: Multiple approaches to ensure custom fields display with correct names
   // 
