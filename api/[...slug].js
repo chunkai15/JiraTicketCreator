@@ -2,10 +2,9 @@
 const app = require('./server');
 
 module.exports = (req, res) => {
-  // Set the base path for API routes
-  req.url = req.url.replace(/^\/api/, '');
-  if (req.url === '') {
-    req.url = '/';
+  // Keep the /api prefix for routes to match server.js
+  if (!req.url.startsWith('/api')) {
+    req.url = '/api' + req.url;
   }
   
   return app(req, res);
