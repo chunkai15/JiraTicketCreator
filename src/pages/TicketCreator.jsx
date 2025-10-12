@@ -24,6 +24,7 @@ import { TextParser } from '../utils/textParser';
 import JiraApiService from '../services/jiraApiService';
 import ConfigService from '../services/configService';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
+import { API_BASE_URL } from '../config/api';
 
 const TABS = [
   { id: 'input', label: 'Input', icon: FileText, description: 'Enter ticket information' },
@@ -103,7 +104,7 @@ export default function TicketCreator() {
     setProjectMetadata(prev => ({ ...prev, loading: true }));
 
     try {
-      const response = await fetch('http://localhost:3001/api/jira/project-metadata', {
+      const response = await fetch(`${API_BASE_URL}/jira/project-metadata`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

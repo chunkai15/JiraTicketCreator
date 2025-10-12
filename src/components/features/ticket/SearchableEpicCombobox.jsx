@@ -6,6 +6,7 @@ import { Button } from '../../ui/button';
 import { Alert, AlertDescription } from '../../ui/alert';
 import { Badge } from '../../ui/badge';
 import { debounce } from 'lodash';
+import { API_BASE_URL } from '../../../config/api';
 
 const SearchableEpicCombobox = ({
   value,
@@ -35,7 +36,7 @@ const SearchableEpicCombobox = ({
       try {
         console.log(`🔍 Searching Epics: "${term}"`);
         
-        const response = await fetch('http://localhost:3001/api/jira/search-epics', {
+        const response = await fetch(`${API_BASE_URL}/jira/search-epics`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -195,3 +196,4 @@ const SearchableEpicCombobox = ({
 };
 
 export default SearchableEpicCombobox;
+

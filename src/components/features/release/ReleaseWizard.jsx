@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../../ui/toast-provider';
+import { API_BASE_URL } from '../../../config/api';
 import { 
   Settings, 
   Rocket, 
@@ -192,7 +193,7 @@ export function ReleaseWizard() {
         
         try {
           // Get issue status breakdown
-          const response = await fetch(`http://localhost:3001/api/jira/get-issue-status-breakdown`, {
+          const response = await fetch(`${API_BASE_URL}/jira/get-issue-status-breakdown`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

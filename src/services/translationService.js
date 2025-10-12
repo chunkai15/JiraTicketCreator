@@ -1,4 +1,5 @@
 // Translation service for Vietnamese to English
+import { API_BASE_URL } from '../config/api';
 
 const TranslationService = {
   // Common Vietnamese to English translations for Jira tickets
@@ -200,7 +201,7 @@ const TranslationService = {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/translate', {
+      const response = await fetch(`${API_BASE_URL}/translate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

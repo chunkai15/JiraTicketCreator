@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 /**
  * Custom hook for API caching with TTL (Time To Live)
@@ -160,7 +161,7 @@ export function useProjectMetadataCache(projectKey) {
 
   const fetchMetadata = useCallback(async (config, forceRefresh = false) => {
     const apiCall = async () => {
-      const response = await fetch('http://localhost:3001/api/jira/project-metadata', {
+      const response = await fetch(`${API_BASE_URL}/jira/project-metadata`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,7 +201,7 @@ export function useEpicSearchCache() {
     const cacheKey = `epic-search-${config.projectKey}-${searchTerm}`;
     
     const apiCall = async () => {
-      const response = await fetch('http://localhost:3001/api/jira/search-epics', {
+      const response = await fetch(`${API_BASE_URL}/jira/search-epics`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,3 +232,4 @@ export function useEpicSearchCache() {
     searchEpics
   };
 }
+

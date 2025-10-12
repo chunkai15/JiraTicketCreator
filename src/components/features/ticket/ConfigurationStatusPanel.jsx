@@ -100,3 +100,4 @@ export function ConfigurationStatusPanel({ jiraConfig, connectionStatus, onRefre
     </div>
   );
 }
+
