@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../../ui/toast-provider';
 import { API_BASE_URL } from '../../../config/api';
@@ -92,9 +92,39 @@ export function ReleaseWizard() {
   });
   const [creationProgress, setCreationProgress] = useState(0);
   const [createdPages, setCreatedPages] = useState([]);
+  
+  // Add caching to prevent duplicate API calls with persistent refs
+  const [releasesCache, setReleasesCache] = useState(null);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+  const [isAutoFetched, setIsAutoFetched] = useState(false);
+  const [fetchingReleases, setFetchingReleases] = useState(false);
+  
+  // Use refs for persistent tracking across re-renders and component remounts
+  const hasAutoFetchedRef = useRef(false);
+  const isFetchingRef = useRef(false);
+  const mountCountRef = useRef(0);
+  const releaseCacheRef = useRef(null);
 
-  // Load saved configuration and auto-fetch releases
+  // Load saved configuration and auto-fetch releases with enhanced duplicate prevention
   useEffect(() => {
+    // Increment mount count for debugging
+    mountCountRef.current += 1;
+    console.log(`🔄 ReleaseWizard mount #${mountCountRef.current}`);
+    
+    // Prevent duplicate execution using persistent ref
+    if (hasAutoFetchedRef.current) {
+      console.log('🚫 Auto-fetch already completed globally, skipping');
+      
+      // Restore cached data if available
+      if (releaseCacheRef.current) {
+        console.log('📋 Restoring cached releases from ref');
+        setReleases(releaseCacheRef.current);
+        setReleasesCache(releaseCacheRef.current);
+        setIsAutoFetched(true);
+      }
+      return;
+    }
+    
     const loadConfigAndFetchReleases = async () => {
       try {
         const { default: ConfigService } = await import('../../../services/configService');
@@ -122,10 +152,19 @@ export function ReleaseWizard() {
           setConnectionStatus(prev => ({ ...prev, confluence: 'connected' }));
         }
         
-        // Auto-fetch releases if Jira config exists
-        if (savedJiraConfig && savedJiraConfig.url && savedJiraConfig.token && savedJiraConfig.projectKey) {
-          console.log('🚀 Auto-fetching releases...');
+        // Auto-fetch releases if Jira config exists and not already fetched
+        if (savedJiraConfig && savedJiraConfig.url && savedJiraConfig.token && savedJiraConfig.projectKey && !hasAutoFetchedRef.current) {
+          // Double-check with ref to prevent race conditions
+          if (isFetchingRef.current) {
+            console.log('🚫 Already fetching releases globally, skipping duplicate');
+            return;
+          }
+          
+          console.log('🚀 Auto-fetching releases (first time globally)...');
+          hasAutoFetchedRef.current = true; // Set immediately to prevent duplicates
+          isFetchingRef.current = true;
           setIsLoading(true);
+          setFetchingReleases(true);
           
           try {
             const { default: JiraReleasesService } = await import('../../../services/jiraReleasesService');
@@ -149,12 +188,19 @@ export function ReleaseWizard() {
               }));
               
               setReleases(transformedReleases);
-              console.log(`✅ Auto-loaded ${transformedReleases.length} releases`);
+              setReleasesCache(transformedReleases);
+              releaseCacheRef.current = transformedReleases; // Store in persistent ref
+              setLastFetchTime(Date.now());
+              setIsAutoFetched(true);
+              console.log(`✅ Auto-loaded ${transformedReleases.length} releases (cached globally, mount #${mountCountRef.current})`);
             }
           } catch (error) {
             console.error('❌ Auto-fetch releases failed:', error);
+            hasAutoFetchedRef.current = false; // Reset on error to allow retry
           } finally {
             setIsLoading(false);
+            setFetchingReleases(false);
+            isFetchingRef.current = false;
           }
         }
       } catch (error) {
@@ -172,9 +218,16 @@ export function ReleaseWizard() {
     }
   }, []);
 
-  // Fetch detailed release information including issue status breakdown
+  // Fetch detailed release information including issue status breakdown with debouncing
   const fetchReleaseDetails = useCallback(async (releaseIds) => {
     if (!jiraConfig.url || !jiraConfig.token || !jiraConfig.projectKey) {
+      return;
+    }
+
+    // Prevent duplicate calls for same release IDs
+    const releaseKey = releaseIds.sort().join(',');
+    if (releaseStatusBreakdown[releaseKey]) {
+      console.log('📋 Using cached release details for:', releaseKey);
       return;
     }
 
@@ -184,9 +237,17 @@ export function ReleaseWizard() {
       const { JiraApiService } = await import('../../../services/jiraApiService');
       const jiraService = new JiraApiService(jiraConfig);
       
+      // Batch process releases to reduce API calls
       const detailsPromises = releaseIds.map(async (releaseId) => {
         const release = releases.find(r => r.id === releaseId);
         if (!release) return null;
+
+        // Check if we already have data for this specific release
+        const existingData = Object.values(releaseStatusBreakdown).find(data => data.releaseId === releaseId);
+        if (existingData) {
+          console.log(`📋 Using cached data for release: ${release.name}`);
+          return existingData;
+        }
 
         // Build JQL for this release
         const jql = `project = "${jiraConfig.projectKey}" AND fixVersion = "${release.name}" AND issuetype != Sub-task`;
@@ -231,22 +292,21 @@ export function ReleaseWizard() {
       });
 
       const results = await Promise.all(detailsPromises);
-      const breakdownData = {};
+      const breakdownData = { ...releaseStatusBreakdown };
       
       results.filter(Boolean).forEach(result => {
         breakdownData[result.releaseId] = result;
       });
       
       setReleaseStatusBreakdown(breakdownData);
-      console.log('📊 Release status breakdown loaded:', breakdownData);
-      console.log('📊 Number of releases with data:', Object.keys(breakdownData).length);
+      console.log('📊 Release status breakdown loaded (with caching):', Object.keys(breakdownData).length, 'releases');
       
     } catch (error) {
       console.error('Failed to fetch release details:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [jiraConfig, releases]);
+  }, [jiraConfig, releases, releaseStatusBreakdown]);
 
   const nextStep = useCallback(async () => {
     if (currentStep < WIZARD_STEPS.length - 1) {
@@ -333,14 +393,34 @@ export function ReleaseWizard() {
     }
   }, [jiraConfig, confluenceConfig]);
 
-  // Fetch releases
-  const fetchReleases = useCallback(async () => {
+  // Fetch releases with enhanced caching and ref-based duplicate prevention
+  const fetchReleases = useCallback(async (forceRefresh = false) => {
     if (!jiraConfig.url || !jiraConfig.token || !jiraConfig.projectKey) {
       alert('Please configure Jira settings first in the Settings page.');
       return;
     }
     
+    // Check if already fetching to prevent duplicate calls (use ref for reliability)
+    if (isFetchingRef.current || fetchingReleases) {
+      console.log('🚫 Already fetching releases, skipping duplicate call');
+      return;
+    }
+    
+    // Use cache if available and not forcing refresh (cache valid for 5 minutes)
+    const cacheAge = lastFetchTime ? Date.now() - lastFetchTime : Infinity;
+    const cacheValid = cacheAge < 5 * 60 * 1000; // 5 minutes
+    
+    if (!forceRefresh && releaseCacheRef.current && cacheValid) {
+      console.log('📋 Using cached releases data from ref');
+      setReleases(releaseCacheRef.current);
+      setReleasesCache(releaseCacheRef.current);
+      return;
+    }
+    
+    // Set both state and ref to prevent duplicates
+    isFetchingRef.current = true;
     setIsLoading(true);
+    setFetchingReleases(true);
     
     try {
       // Import services dynamically
@@ -349,7 +429,7 @@ export function ReleaseWizard() {
       const releasesService = new JiraReleasesService(jiraConfig);
       const result = await releasesService.getReleases();
       
-      console.log('📊 Fetch releases result:', result);
+      console.log('📊 Manual fetch releases result:', result);
       
       if (result.success && result.data && result.data.releases) {
         // Transform releases to match our format
@@ -367,7 +447,10 @@ export function ReleaseWizard() {
         }));
         
         setReleases(transformedReleases);
-        console.log(`✅ Fetched ${transformedReleases.length} releases`);
+        setReleasesCache(transformedReleases);
+        releaseCacheRef.current = transformedReleases; // Store in persistent ref
+        setLastFetchTime(Date.now());
+        console.log(`✅ Manually fetched ${transformedReleases.length} releases (cached in ref)`);
       } else {
         console.error('Failed to fetch releases:', result.error);
         toast.error({
@@ -385,8 +468,10 @@ export function ReleaseWizard() {
       });
     } finally {
       setIsLoading(false);
+      setFetchingReleases(false);
+      isFetchingRef.current = false; // Reset ref
     }
-  }, [jiraConfig]);
+  }, [jiraConfig, fetchingReleases, releasesCache, lastFetchTime]);
 
   // Don't auto-fetch release details - only fetch when going to Preview step
   // useEffect(() => {
@@ -773,7 +858,7 @@ function SelectReleasesStep({
                 Choose which releases to create Confluence pages for
               </CardDescription>
             </div>
-            <Button onClick={onFetchReleases} disabled={isLoading}>
+            <Button onClick={() => onFetchReleases(true)} disabled={isLoading}>
               {isLoading ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (

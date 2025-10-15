@@ -146,19 +146,27 @@ export class ConfluenceService {
   }
 
   // Create sub-page (checklist)
-  async createSubPage(spaceKey, parentId, title, content) {
+  async createSubPage(spaceKey, parentId, title, content, releaseName = null) {
     try {
+      console.log('🔍 Frontend createSubPage - releaseName:', releaseName);
+      console.log('🔍 Frontend createSubPage - title:', title);
+      
+      const requestBody = {
+        url: this.config.url,
+        email: this.config.email,
+        token: this.config.token,
+        spaceKey: spaceKey,
+        parentId: parentId,
+        title: title,
+        content: content,
+        releaseName: releaseName // Pass releaseName to backend
+      };
+      
+      console.log('🔍 Frontend createSubPage - request body releaseName:', requestBody.releaseName);
+      
       const response = await axios.post(
         `${API_BASE_URL}/confluence/create-subpage`,
-        {
-          url: this.config.url,
-          email: this.config.email,
-          token: this.config.token,
-          spaceKey: spaceKey,
-          parentId: parentId,
-          title: title,
-          content: content
-        },
+        requestBody,
         {
           timeout: 30000
         }
@@ -246,11 +254,15 @@ export class ConfluenceService {
       
       // Step 5: Create checklist sub-page
       const checklistTitle = `${releaseName} Release Checklist - ${releaseDateText}`;
-      const checklistContent = ConfluenceService.generateChecklistContent(releaseName);
+      // Let backend generate content based on releaseName - don't use frontend generateChecklistContent
+      const checklistContent = null; // Backend will generate ADF content
       
       console.log('📋 Creating checklist sub-page:', checklistTitle);
+      console.log('🔍 Frontend Debug - releaseName:', releaseName);
+      console.log('🔍 Frontend Debug - releaseName type:', typeof releaseName);
+      console.log('🔍 Frontend Debug - releaseName includes api:', releaseName && releaseName.toLowerCase().includes('api'));
       
-      const subPageResult = await this.createSubPage(spaceKey, mainPageId, checklistTitle, checklistContent);
+      const subPageResult = await this.createSubPage(spaceKey, mainPageId, checklistTitle, checklistContent, releaseName);
       
       if (!subPageResult.success) {
         console.warn('⚠️ Main page created but checklist failed:', subPageResult.error);
