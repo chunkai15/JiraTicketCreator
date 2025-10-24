@@ -177,8 +177,8 @@ function createTableContent(releaseName) {
   };
 
   if (isApiRelated) {
-    console.log(`🔍 Backend createTableContent - will generate 23 API steps`);
-    // API-related versions: 23 steps
+    console.log(`🔍 Backend createTableContent - will generate 24 API steps`);
+    // API-related versions: 24 steps
     return [
       headerRow,
       createOptimizedRow("1", "Finish all the bugs/tasks of version on develop branch", "empty", "empty", "checkbox", "checkbox"),
@@ -187,8 +187,8 @@ function createTableContent(releaseName) {
       createOptimizedRow("4", "Prepare the Staging environment", "empty", "empty", "checkbox", ""),
       createOptimizedRow("5", "Submit the release request on the release channel", "empty", "empty", "checkbox", ""),
       createOptimizedRow("6", "Deploy the build to the Staging", "empty", "empty", "checkbox", ""),
-      createOptimizedRow("7", "Define the side affect OR the important cards of the previous release to re-test for the current release - Dev need to write/comment the side effect to the related card (if available)", "checkbox", "empty", "checkbox", ""),
-      createOptimizedRow("8", "Check if Data Migration is needed, then create an API Data Migration regression checklist.\nQA needs to double check on the Production to make sure the data is correctly migrated", "checkbox", "empty", "checkbox", ""),
+      createOptimizedRow("7", "Define the side affect OR the important cards of the previous release to re-test for the current release.\n - Dev need to write/comment the side effect to the related card (if available)", "checkbox", "empty", "checkbox", ""),
+      createOptimizedRow("8", "Check if Data Migration is needed, then create an API Data Migration regression checklist.", "checkbox", "empty", "checkbox", ""),
       createOptimizedRow("9", "The QA team create the Release checklist and reply to the channel to handle the release", "checkbox", "empty", "empty", ""),
       createOptimizedRow("10", "The QA team create the Regression checklist for the release", "checkbox", "empty", "empty", ""),
       createOptimizedRow("11", "Run the regression test on the Staging and finish the Regression checklist", "checkbox", "checkbox", "empty", ""),
@@ -201,13 +201,14 @@ function createTableContent(releaseName) {
       createOptimizedRow("18", "Release the build on Jira", "checkbox", "empty", "empty", ""),
       createOptimizedRow("19", "Release git", "empty", "empty", "checkbox", ""),
       createOptimizedRow("20", "Smoke test on the Production", "checkbox", "empty", "empty", ""),
-      createOptimizedRow("21", "Report smoke test status to the release channel", "checkbox", "empty", "empty", ""),
-      createOptimizedRow("22", "QA comment to the release channel if it needs to monitor the card after the release.\nQA comment on Jira card if it needs to monitor after release", "checkbox", "checkbox", "empty", ""),
-      createOptimizedRow("23", "Merge the code from master branch to dev branch", "empty", "empty", "checkbox", "")
+      createOptimizedRow("21", "QA needs to double check on the Production to make sure the data is correctly migrated", "checkbox", "checkbox", "empty", ""),
+      createOptimizedRow("22", "Report smoke test status to the release channel", "checkbox", "empty", "empty", ""),
+      createOptimizedRow("23", "QA comment to the release channel if it needs to monitor the card after the release.\nQA comment on Jira card if it needs to monitor after release", "checkbox", "checkbox", "empty", ""),
+      createOptimizedRow("24", "Merge the code from master branch to dev branch", "empty", "empty", "checkbox", "")
     ];
   } else {
-    console.log(`🔍 Backend createTableContent - will generate 25 non-API steps`);
-    // Non-API versions: 25 steps (with 15.1, 15.2)
+    console.log(`🔍 Backend createTableContent - will generate 23 Web steps`);
+    // Web versions: 23 steps (with 15.1, 15.2)
     return [
       headerRow,
       createOptimizedRow("1", "Finish all the bugs/tasks of version on develop branch", "empty", "empty", "checkbox", "checkbox"),
@@ -216,7 +217,7 @@ function createTableContent(releaseName) {
       createOptimizedRow("4", "Prepare the Staging environment", "empty", "empty", "checkbox", ""),
       createOptimizedRow("5", "Submit the release request on the release channel", "empty", "empty", "checkbox", ""),
       createOptimizedRow("6", "Deploy the build to the Staging", "empty", "empty", "checkbox", ""),
-      createOptimizedRow("7", "Define the side affect OR the important cards of the previous release to re-test for the current release - Dev need to write/comment the side effect to the related card (if available)", "checkbox", "empty", "checkbox", ""),
+      createOptimizedRow("7", "Define the side affect OR the important cards of the previous release to re-test for the current release.\n - Dev need to write/comment the side effect to the related card (if available)", "checkbox", "empty", "checkbox", ""),
       createOptimizedRow("8", "Confirm with the API team for the API needed on the Staging", "checkbox", "empty", "checkbox", ""),
       createOptimizedRow("9", "The QA team create the Release checklist and reply to the channel to handle the release", "checkbox", "empty", "empty", ""),
       createOptimizedRow("10", "The QA team create the Regression checklist for the release", "checkbox", "empty", "empty", ""),
@@ -2963,6 +2964,1164 @@ app.post('/api/slack/send-notification', async (req, res) => {
   }
 });
 
+// Send enhanced Slack notification with interactive components
+app.post('/api/slack/send-enhanced-notification', async (req, res) => {
+  try {
+    const { webhookUrl, message, releaseData, assignments } = req.body;
+    
+    if (!webhookUrl || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: webhookUrl, message'
+      });
+    }
+
+    // Validate webhook URL format
+    if (!webhookUrl.startsWith('https://hooks.slack.com/')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid Slack webhook URL format'
+      });
+    }
+
+    console.log('Sending enhanced Slack notification...');
+    console.log('Webhook URL:', webhookUrl.substring(0, 50) + '...');
+    console.log('Enhanced Message:', JSON.stringify(message, null, 2));
+
+    const response = await axios.post(webhookUrl, message, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    console.log('✅ Enhanced Slack notification sent successfully');
+    console.log('Response status:', response.status);
+
+    // Store workflow state for later use
+    const workflowState = {
+      releaseData,
+      assignments,
+      messageTs: response.data?.ts,
+      webhookUrl,
+      status: 'notification_sent',
+      createdAt: new Date().toISOString()
+    };
+
+    res.json({
+      success: true,
+      message: 'Enhanced notification sent successfully',
+      workflowState
+    });
+
+  } catch (error) {
+    console.error('Failed to send enhanced Slack notification:', error.message);
+    
+    let errorMessage = 'Failed to send enhanced Slack notification';
+    
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data;
+      
+      switch (status) {
+        case 400:
+          errorMessage = `Bad request: ${data || 'Invalid webhook URL or message format'}`;
+          break;
+        case 404:
+          errorMessage = 'Webhook URL not found. Please check your Slack webhook URL.';
+          break;
+        case 403:
+          errorMessage = 'Forbidden. Please check your Slack webhook permissions.';
+          break;
+        default:
+          errorMessage = `Slack API error (${status}): ${data || error.message}`;
+      }
+    }
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+});
+
+// Handle Slack Events API (app mentions, messages, etc.)
+app.post('/api/slack/events', async (req, res) => {
+  try {
+    console.log('🚀 EVENTS API CALLED!');
+    console.log('📨 Raw request body:', JSON.stringify(req.body, null, 2));
+    
+    const { type, challenge, event } = req.body;
+    
+    // Handle URL verification challenge
+    if (type === 'url_verification') {
+      console.log('🔐 Slack URL verification challenge received');
+      return res.json({ challenge });
+    }
+    
+    // Handle app mention events
+    if (type === 'event_callback' && event) {
+      console.log('📨 Slack event received:', JSON.stringify(event, null, 2));
+      
+      if (event.type === 'app_mention') {
+        console.log('🤖 Bot mentioned in channel/thread');
+        console.log('Channel:', event.channel);
+        console.log('Thread TS:', event.thread_ts);
+        console.log('Message TS:', event.ts);
+        console.log('User:', event.user);
+        console.log('Text:', event.text);
+        
+        // Check if this is a thread mention (has thread_ts)
+        if (event.thread_ts) {
+          console.log('🧵 Bot mentioned in thread - triggering checklist workflow');
+          
+          const threadTs = event.thread_ts;
+          const channelId = event.channel;
+          
+          // Look for stored workflow state that matches this channel and thread context
+          let matchingWorkflow = null;
+          
+          console.log('🔍 Looking for workflow states...');
+          console.log('📋 Channel ID from event:', channelId);
+          console.log('🧵 Thread TS from event:', threadTs);
+          
+          if (global.workflowStates) {
+            console.log(`💾 Found ${global.workflowStates.size} stored workflow states`);
+            
+            for (const [workflowId, workflow] of global.workflowStates.entries()) {
+              console.log(`🔍 Checking workflow ${workflowId}:`);
+              console.log(`   - Channel ID: ${workflow.channelId}`);
+              console.log(`   - Status: ${workflow.status}`);
+              console.log(`   - Match channel: ${workflow.channelId === channelId}`);
+              console.log(`   - Match status: ${workflow.status === 'awaiting_thread_mention'}`);
+              
+              // Match by channel and check if this is a thread from the original message
+              if (workflow.channelId === channelId && workflow.status === 'awaiting_thread_mention') {
+                console.log(`🎯 Found matching workflow: ${workflowId}`);
+                matchingWorkflow = workflow;
+                break;
+              }
+            }
+          } else {
+            console.log('❌ No global.workflowStates found');
+          }
+          
+          if (matchingWorkflow) {
+            console.log('📋 Using stored workflow data for checklist');
+            
+            // Extract checklist URL from release data
+            let checklistUrl = null;
+            let releaseName = 'Current Release';
+            
+            if (matchingWorkflow.releaseData && matchingWorkflow.releaseData.pages) {
+              const checklistPage = matchingWorkflow.releaseData.pages.find(page => page.type === 'checklist');
+              if (checklistPage) {
+                checklistUrl = checklistPage.shortUrl || checklistPage.url;
+                releaseName = matchingWorkflow.releaseData.releaseName || checklistPage.releaseName || 'Current Release';
+              }
+            }
+            
+            // If no checklist URL found, skip sending
+            if (!checklistUrl) {
+              console.log('⚠️ No checklist URL found in workflow data, skipping checklist send');
+              await sendFallbackMessage(channelId, threadTs, 'Hi! I see you mentioned me, but I don\'t have a checklist URL for this release. Please make sure the release pages were created properly.');
+              return;
+            }
+            
+            try {
+              await sendChecklistToThread(threadTs, channelId, checklistUrl, releaseName);
+              console.log('✅ Checklist sent automatically to thread');
+              
+              // Update workflow status
+              matchingWorkflow.status = 'checklist_sent';
+              matchingWorkflow.threadTs = threadTs;
+              matchingWorkflow.completedAt = new Date().toISOString();
+              
+            } catch (error) {
+              console.error('❌ Failed to send checklist automatically:', error.message);
+              await sendFallbackMessage(channelId, threadTs, 'Failed to send checklist. Please check the configuration.');
+            }
+          } else {
+            console.log('⚠️ No matching workflow found for this thread mention');
+            await sendFallbackMessage(channelId, threadTs, 'Hi! I see you mentioned me, but I don\'t have a pending workflow for this thread. Please make sure to click the "Send Checklist to Thread" button first.');
+          }
+        } else {
+          console.log('💬 Bot mentioned in main channel (not thread)');
+          // Handle main channel mentions if needed
+        }
+      }
+    }
+    
+    // Always respond with 200 OK to acknowledge receipt
+    res.status(200).json({ status: 'ok' });
+    
+  } catch (error) {
+    console.error('Failed to handle Slack event:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Helper function to send checklist to thread
+async function sendChecklistToThread(threadTs, channelId, checklistUrl, releaseName) {
+  const botToken = getBotToken();
+  if (!botToken) {
+    console.warn('⚠️ Bot token not configured - using fallback message');
+    // For testing purposes, we'll send a message without the bot token
+    // In production, this should throw an error
+    console.log(`📋 Would send checklist to thread ${threadTs} in channel ${channelId}`);
+    console.log(`🔗 Checklist URL: ${checklistUrl}`);
+    console.log(`📦 Release: ${releaseName}`);
+    return { ok: true, ts: 'test_message_ts' };
+  }
+
+  const checklistMessage = {
+    channel: channelId,
+    thread_ts: threadTs,
+    text: `:clipboard: Release Checklist for ${releaseName}\nHere's your comprehensive release checklist:\n:link: Open Release Checklist - ${checklistUrl}`,
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `:clipboard: *Release Checklist for ${releaseName}*\n\nHere's your comprehensive release checklist:`
+        }
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: ':link: Open Release Checklist',
+              emoji: true
+            },
+            url: checklistUrl,
+            style: 'primary'
+          }
+        ]
+      }
+    ]
+  };
+
+  const response = await axios.post('https://slack.com/api/chat.postMessage', checklistMessage, {
+    headers: {
+      'Authorization': `Bearer ${botToken}`,
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000
+  });
+
+  if (!response.data.ok) {
+    throw new Error(`Slack API error: ${response.data.error}`);
+  }
+
+  return response.data;
+}
+
+// Helper function to get configured channel ID from environment or settings
+function getConfiguredChannelId() {
+  // Use the helper function that prioritizes frontend config
+  const channelId = getTargetChannelId();
+  console.log(`🎯 Using channel ID: ${channelId} (Source: ${frontendConfig.targetChannelId ? 'FRONTEND CONFIG' : 'ENVIRONMENT/DEFAULT'})`);
+  return channelId;
+}
+
+// Helper function to determine target channel based on webhook URL
+function getChannelFromWebhookUrl(webhookUrl) {
+  // Parse webhook URL to extract channel information if possible
+  // This is a simplified approach - in practice, you might maintain a mapping
+  if (!webhookUrl) return null;
+  
+  // Example webhook URL patterns and their corresponding channels
+  const webhookChannelMap = {
+    // Add your webhook URL patterns here
+    'hooks.slack.com/services/T7D58H63W/B09J2KBMQQY': 'C09LTEX32AY', // kai-test
+    // Add more mappings as needed
+  };
+  
+  for (const [pattern, channelId] of Object.entries(webhookChannelMap)) {
+    if (webhookUrl.includes(pattern)) {
+      console.log(`🔗 Webhook URL matched pattern, using channel: ${channelId}`);
+      return channelId;
+    }
+  }
+  
+  console.log('🔗 No channel mapping found for webhook URL');
+  return null;
+}
+
+// Global monitoring state
+const activeMonitors = new Map(); // workflowId -> { intervalId, config, stats }
+
+// Enhanced workflow: Intelligent thread detection and auto-send with continuous monitoring
+async function processIntelligentWorkflow(channelId, releaseData, assignments, workflowId) {
+  console.log('🔍 Starting enhanced intelligent thread detection...');
+  
+  const botToken = getBotToken();
+  console.log(`🔑 Bot token check: ${botToken ? 'FOUND' : 'NOT FOUND'}`);
+  console.log(`🔑 Bot token length: ${botToken ? botToken.length : 0}`);
+  console.log(`🔑 Bot token prefix: ${botToken ? botToken.substring(0, 10) : 'none'}`);
+  console.log(`🔑 Source: ${frontendConfig.slackBotToken ? 'FRONTEND CONFIG' : 'ENVIRONMENT'}`);
+  
+  if (!botToken) {
+    throw new Error('Bot token not configured');
+  }
+
+  // Extract release version for matching
+  const releaseVersion = releaseData.releaseName || 'Unknown Release';
+  console.log(`🎯 Looking for threads containing: "${releaseVersion}"`);
+
+  // Initial scan for existing threads
+  console.log('📨 Initial scan for existing threads...');
+  const initialThreads = await findMatchingThreads(channelId, releaseVersion, botToken);
+  console.log(`📋 Found ${initialThreads.length} existing matching threads`);
+
+  // Send checklist to initial matching threads
+  const initialResults = [];
+  for (const thread of initialThreads) {
+    const result = await sendChecklistToMatchingThread(thread, releaseData, assignments);
+    initialResults.push({ thread, result });
+  }
+
+  // Start continuous monitoring for new threads
+  const monitorConfig = {
+    workflowId,
+    channelId,
+    releaseVersion,
+    releaseData,
+    assignments,
+    botToken,
+    startTime: Date.now(),
+    stats: {
+      totalScans: 1,
+      threadsFound: initialThreads.length,
+      checklistsSent: initialResults.filter(r => r.result.success).length,
+      duplicatesSkipped: initialResults.filter(r => r.result.skipped).length,
+      lastScanTime: Date.now()
+    }
+  };
+
+  // Start monitoring interval (scan every 2 minutes)
+  const intervalId = setInterval(async () => {
+    try {
+      await performContinuousMonitoring(monitorConfig);
+    } catch (error) {
+      console.error(`❌ Monitoring error for workflow ${workflowId}:`, error.message);
+    }
+  }, 2 * 60 * 1000); // 2 minutes
+
+  // Store monitoring state
+  activeMonitors.set(workflowId, {
+    intervalId,
+    config: monitorConfig,
+    stats: monitorConfig.stats
+  });
+
+  // Auto-stop monitoring after 4 hours
+  setTimeout(() => {
+    stopWorkflowMonitoring(workflowId, 'auto_timeout');
+  }, 4 * 60 * 60 * 1000); // 4 hours
+
+  console.log(`🔄 Started continuous monitoring for workflow ${workflowId} (will auto-stop in 4 hours)`);
+
+  // Store workflow state for tracking
+  await storeEnhancedWorkflowState(workflowId, releaseData, assignments, channelId, initialThreads, {
+    monitoring: true,
+    monitoringStarted: Date.now()
+  });
+
+  return {
+    workflowId,
+    initialThreads: initialThreads.length,
+    initialResults,
+    monitoringActive: true
+  };
+}
+
+// Perform continuous monitoring scan
+async function performContinuousMonitoring(config) {
+  console.log(`🔄 Continuous monitoring scan for workflow ${config.workflowId}...`);
+  
+  config.stats.totalScans++;
+  config.stats.lastScanTime = Date.now();
+
+  // Scan for new matching threads
+  const currentThreads = await findMatchingThreads(config.channelId, config.releaseVersion, config.botToken);
+  
+  // Filter out threads we've already processed
+  const newThreads = currentThreads.filter(thread => {
+    const key = `${thread.threadTs}_${config.releaseVersion}`;
+    return !sentChecklists.has(key);
+  });
+
+  console.log(`📋 Monitoring scan: ${currentThreads.length} total threads, ${newThreads.length} new threads`);
+
+  if (newThreads.length > 0) {
+    console.log(`🆕 Found ${newThreads.length} new matching threads!`);
+    
+    // Send checklists to new threads
+    for (const thread of newThreads) {
+      const result = await sendChecklistToMatchingThread(thread, config.releaseData, config.assignments);
+      
+      if (result.success) {
+        config.stats.checklistsSent++;
+        console.log(`✅ Auto-sent checklist to new thread ${thread.threadTs}`);
+      } else if (result.skipped) {
+        config.stats.duplicatesSkipped++;
+      }
+    }
+    
+    config.stats.threadsFound += newThreads.length;
+  }
+}
+
+// Stop workflow monitoring
+function stopWorkflowMonitoring(workflowId, reason = 'manual') {
+  const monitor = activeMonitors.get(workflowId);
+  if (monitor) {
+    clearInterval(monitor.intervalId);
+    activeMonitors.delete(workflowId);
+    
+    const duration = Date.now() - monitor.config.startTime;
+    const hours = (duration / (1000 * 60 * 60)).toFixed(1);
+    
+    console.log(`🛑 Stopped monitoring for workflow ${workflowId} (reason: ${reason}, duration: ${hours}h)`);
+    console.log(`📊 Final stats:`, monitor.stats);
+    
+    return {
+      stopped: true,
+      reason,
+      duration: hours,
+      stats: monitor.stats
+    };
+  }
+  
+  return { stopped: false, reason: 'not_found' };
+}
+
+// Get monitoring status
+function getMonitoringStatus(workflowId) {
+  const monitor = activeMonitors.get(workflowId);
+  if (monitor) {
+    const duration = Date.now() - monitor.config.startTime;
+    const hours = (duration / (1000 * 60 * 60)).toFixed(1);
+    
+    return {
+      active: true,
+      workflowId,
+      duration: hours,
+      stats: monitor.stats,
+      releaseVersion: monitor.config.releaseVersion
+    };
+  }
+  
+  return { active: false };
+}
+
+// List all active monitors
+function listActiveMonitors() {
+  const monitors = [];
+  for (const [workflowId, monitor] of activeMonitors.entries()) {
+    const duration = Date.now() - monitor.config.startTime;
+    const hours = (duration / (1000 * 60 * 60)).toFixed(1);
+    
+    monitors.push({
+      workflowId,
+      releaseVersion: monitor.config.releaseVersion,
+      duration: hours,
+      stats: monitor.stats
+    });
+  }
+  
+  return monitors;
+}
+
+// Enhanced release version matching with comprehensive platform support
+function checkReleaseVersionMatch(text, versionLower, originalVersion) {
+  console.log(`     🎯 Enhanced matching - Text: "${text.substring(0, 100)}..."`);
+  console.log(`     🎯 Enhanced matching - Version: "${versionLower}" (Original: "${originalVersion}")`);
+  
+  // Extract version number if present (v1.21.0, v2.5.52, etc.)
+  const versionNumberRegexMatch = originalVersion.match(/v?\d+\.\d+\.\d+/i);
+  const versionNumber = versionNumberRegexMatch ? versionNumberRegexMatch[0].toLowerCase() : null;
+  
+  console.log(`     🔢 Extracted version number: ${versionNumber}`);
+  
+  // Also check for version patterns in text like "version: v1.15.1" or "version:v1.15.1"
+  const textVersionMatch = text.match(/version\s*:\s*(v?\d+\.\d+\.\d+)/i);
+  const textVersionNumber = textVersionMatch ? textVersionMatch[1].toLowerCase() : null;
+  
+  console.log(`     🔢 Found version in text: ${textVersionNumber}`);
+  
+  // Platform-specific matching patterns
+  const platformPatterns = {
+    // MP API patterns
+    'mp-api': {
+      patterns: [
+        'mp-api',
+        'mp api', 
+        'marketplace api',
+        'mp backend',
+        'marketplace backend',
+        'platform: mp-api',
+        'platform:mp-api',
+        'for platform: mp-api',
+        'for platform:mp-api'
+      ],
+      keywords: ['mp', 'api'],
+      strictKeywords: true
+    },
+    
+    // Payment API patterns  
+    'payment-api': {
+      patterns: [
+        'payment-api',
+        'payment api',
+        'payments api',
+        'payment service',
+        'payments service',
+        'platform: payment-api',
+        'platform:payment-api',
+        'for platform: payment-api',
+        'for platform:payment-api'
+      ],
+      keywords: ['payment', 'api'],
+      strictKeywords: true
+    },
+    
+    // Marketplace Client Web patterns
+    'marketplace client web': {
+      patterns: [
+        'marketplace client web',
+        'marketplace client',
+        'client web',
+        'marketplace web client',
+        'mp client web',
+        'mp client',
+        'platform: marketplace client web',
+        'platform:marketplace client web',
+        'for platform: marketplace client web',
+        'for platform:marketplace client web'
+      ],
+      keywords: ['marketplace', 'client', 'web'],
+      strictKeywords: false // Allow partial matches
+    },
+    
+    // Marketplace Pro Web patterns
+    'marketplace pro web': {
+      patterns: [
+        'marketplace pro web',
+        'marketplace pro',
+        'pro web',
+        'marketplace web pro',
+        'mp pro web',
+        'mp pro',
+        'platform: marketplace pro web',
+        'platform:marketplace pro web',
+        'for platform: marketplace pro web',
+        'for platform:marketplace pro web'
+      ],
+      keywords: ['marketplace', 'pro', 'web'],
+      strictKeywords: false
+    },
+    
+    // Marketplace CMS Web patterns
+    'marketplace cms web': {
+      patterns: [
+        'marketplace cms web',
+        'marketplace cms',
+        'cms web',
+        'marketplace web cms',
+        'mp cms web',
+        'mp cms',
+        'platform: marketplace cms web',
+        'platform:marketplace cms web',
+        'for platform: marketplace cms web',
+        'for platform:marketplace cms web'
+      ],
+      keywords: ['marketplace', 'cms', 'web'],
+      strictKeywords: false
+    }
+  };
+  
+  // Find matching platform
+  let platformMatch = false;
+  let matchedPlatform = null;
+  
+  for (const [platform, config] of Object.entries(platformPatterns)) {
+    if (versionLower.includes(platform) || 
+        config.patterns.some(pattern => versionLower.includes(pattern))) {
+      
+      console.log(`     🎯 Detected platform: ${platform}`);
+      
+      // Check if text matches this platform
+      const exactPatternMatch = config.patterns.some(pattern => text.includes(pattern));
+      
+      let keywordMatch = false;
+      if (config.strictKeywords) {
+        // All keywords must be present
+        keywordMatch = config.keywords.every(keyword => text.includes(keyword));
+    } else {
+        // At least 2 keywords must be present, or exact pattern match
+        const keywordCount = config.keywords.filter(keyword => text.includes(keyword)).length;
+        keywordMatch = keywordCount >= 2 || exactPatternMatch;
+      }
+      
+      if (exactPatternMatch || keywordMatch) {
+        platformMatch = true;
+        matchedPlatform = platform;
+        console.log(`     ✅ Platform match found: ${platform} (exact: ${exactPatternMatch}, keywords: ${keywordMatch})`);
+        break;
+      }
+    }
+  }
+  
+  // If no platform-specific match, try generic matching
+  if (!platformMatch) {
+    console.log(`     🔍 No platform match, trying generic matching...`);
+    
+    // Try exact version name match
+    if (text.includes(versionLower)) {
+      platformMatch = true;
+      console.log(`     ✅ Generic exact match found`);
+    }
+    
+    // Try partial matching for common patterns
+    if (!platformMatch) {
+      const versionWords = versionLower.split(/[\s\-_]+/).filter(word => word.length > 2);
+      const matchedWords = versionWords.filter(word => text.includes(word));
+      
+      if (matchedWords.length >= Math.min(2, versionWords.length)) {
+        platformMatch = true;
+        console.log(`     ✅ Generic partial match found: ${matchedWords.join(', ')}`);
+      }
+    }
+  }
+  
+  // Version number validation - enhanced to handle multiple formats
+  let versionNumberMatch = true;
+  if (versionNumber && platformMatch) {
+    // Check direct version match
+    const directMatch = text.includes(versionNumber) || text.includes(versionNumber.replace('v', ''));
+    
+    // Check if text version matches expected version
+    const textVersionMatches = textVersionNumber && (
+      textVersionNumber === versionNumber || 
+      textVersionNumber === versionNumber.replace('v', '') ||
+      textVersionNumber.replace('v', '') === versionNumber.replace('v', '')
+    );
+    
+    versionNumberMatch = directMatch || textVersionMatches;
+    console.log(`     🔢 Version number match: ${versionNumberMatch} (direct: ${directMatch}, text: ${textVersionMatches})`);
+    console.log(`     🔢 Looking for: ${versionNumber}, Found in text: ${textVersionNumber}`);
+  }
+  
+  const finalMatch = platformMatch && versionNumberMatch;
+  console.log(`     🎯 Final match result: ${finalMatch} (platform: ${platformMatch}, version: ${versionNumberMatch})`);
+  
+  return finalMatch;
+}
+
+// Track sent checklists to prevent duplicates
+const sentChecklists = new Map(); // threadTs -> { releaseVersion, timestamp, checklistUrl }
+
+// Check if checklist was already sent to thread
+function wasChecklistAlreadySent(threadTs, releaseVersion, checklistUrl) {
+  const key = `${threadTs}_${releaseVersion}`;
+  const existing = sentChecklists.get(key);
+  
+  if (existing) {
+    const timeDiff = Date.now() - existing.timestamp;
+    const hoursSince = timeDiff / (1000 * 60 * 60);
+    
+    console.log(`     📋 Checklist was sent ${hoursSince.toFixed(1)} hours ago to thread ${threadTs}`);
+    
+    // Consider it duplicate if sent within last 24 hours and same URL
+    if (hoursSince < 24 && existing.checklistUrl === checklistUrl) {
+      console.log(`     🚫 Preventing duplicate checklist send (within 24h window)`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Mark checklist as sent
+function markChecklistAsSent(threadTs, releaseVersion, checklistUrl) {
+  const key = `${threadTs}_${releaseVersion}`;
+  sentChecklists.set(key, {
+    releaseVersion,
+    checklistUrl,
+    timestamp: Date.now()
+  });
+  console.log(`     ✅ Marked checklist as sent for thread ${threadTs}`);
+}
+
+// Find threads matching release version and checklist request pattern
+async function findMatchingThreads(channelId, releaseVersion, botToken) {
+  console.log('🔍 Scanning channel for matching threads...');
+  console.log(`📋 Target channel: ${channelId}`);
+  console.log(`🎯 Looking for release version: "${releaseVersion}"`);
+  
+  // Smart channel detection based on configuration and webhook URL
+  let targetChannelId = channelId;
+  
+  // Try to get configured channel from frontend settings
+  const configuredChannelId = getConfiguredChannelId();
+  
+  if (channelId.startsWith('D')) {
+    // If clicked from DM, use configured channel or fallback to kai-test
+    targetChannelId = configuredChannelId || 'C09LTEX32AY';
+    console.log(`🔄 Button clicked from DM (${channelId}), redirecting to configured channel (${targetChannelId})`);
+  } else if (configuredChannelId && configuredChannelId !== channelId) {
+    // If there's a configured channel different from current, use configured one
+    targetChannelId = configuredChannelId;
+    console.log(`🔄 Using configured channel (${targetChannelId}) instead of current (${channelId})`);
+  }
+  
+  console.log(`🎯 Using channel ID: ${targetChannelId}`);
+  
+  const matchingThreads = [];
+  
+  try {
+    // Get channel history
+    console.log(`📡 Calling Slack API: conversations.history for channel ${targetChannelId}`);
+    const historyResponse = await axios.get(`https://slack.com/api/conversations.history`, {
+      params: {
+        channel: targetChannelId,
+        limit: 100
+      },
+      headers: {
+        'Authorization': `Bearer ${botToken}`
+      }
+    });
+
+    console.log(`📡 Slack API response:`, historyResponse.data);
+
+    if (!historyResponse.data.ok) {
+      console.error('❌ Failed to get channel history:', historyResponse.data.error);
+      return matchingThreads;
+    }
+
+    const messages = historyResponse.data.messages || [];
+    console.log(`📨 Scanning ${messages.length} messages for threads...`);
+
+    for (const message of messages) {
+      console.log(`📝 Message ${message.ts}: "${message.text?.substring(0, 100)}..."`);
+      
+      // Check if message has replies (is a thread)
+      if (message.reply_count && message.reply_count > 0) {
+        console.log(`🧵 Found thread: ${message.ts} with ${message.reply_count} replies`);
+        
+        // Get thread replies
+        console.log(`📡 Getting replies for thread ${message.ts}...`);
+        const repliesResponse = await axios.get(`https://slack.com/api/conversations.replies`, {
+          params: {
+            channel: targetChannelId,
+            ts: message.ts
+          },
+          headers: {
+            'Authorization': `Bearer ${botToken}`
+          }
+        });
+
+        if (repliesResponse.data.ok) {
+          const replies = repliesResponse.data.messages || [];
+          console.log(`💬 Found ${replies.length} replies in thread`);
+          
+          // Log all reply texts for debugging
+          replies.forEach((reply, index) => {
+            console.log(`   Reply ${index}: "${reply.text?.substring(0, 100)}..."`);
+          });
+          
+          // Check if thread matches criteria - ENHANCED STRICT MATCHING
+          const hasReleaseVersion = replies.some(reply => {
+            if (!reply.text) return false;
+            const text = reply.text.toLowerCase();
+            const version = releaseVersion.toLowerCase();
+            
+            console.log(`     🔍 Checking "${reply.text.substring(0, 50)}..." for version "${version}"`);
+            
+            // Enhanced STRICT matching with comprehensive platform support
+            const matches = checkReleaseVersionMatch(text, version, releaseVersion);
+            
+            console.log(`     📋 Enhanced strict version match: ${matches}`);
+            return matches;
+          });
+          
+          const hasChecklistRequest = replies.some(reply => {
+            if (!reply.text) return false;
+            const text = reply.text.toLowerCase();
+            
+            // STRICT checklist request patterns - must be explicit requests
+            const strictPatterns = [
+              'please send the release checklist',
+              'please send checklist', 
+              'send the release checklist',
+              'send checklist',
+              'click the button when you\'re done'
+            ];
+            
+            // Exclude bot messages and automated responses
+            const isUserMessage = !reply.bot_id && !reply.subtype;
+            const matches = isUserMessage && strictPatterns.some(pattern => text.includes(pattern));
+            
+            console.log(`     📋 Checking "${reply.text.substring(0, 50)}..." for checklist patterns`);
+            console.log(`     📋 Is user message: ${isUserMessage}, Pattern match: ${strictPatterns.some(pattern => text.includes(pattern))}`);
+            console.log(`     📋 Final checklist match: ${matches}`);
+            
+            return matches;
+          });
+
+          console.log(`🎯 Thread ${message.ts} analysis:`);
+          console.log(`   📋 Has release version: ${hasReleaseVersion}`);
+          console.log(`   📋 Has checklist request: ${hasChecklistRequest}`);
+
+          if (hasReleaseVersion && hasChecklistRequest) {
+            console.log(`✅ Thread ${message.ts} matches criteria!`);
+            matchingThreads.push({
+              threadTs: message.ts,
+              channelId: targetChannelId,
+              releaseVersion: releaseVersion,
+              replies: replies
+            });
+          } else {
+            console.log(`❌ Thread ${message.ts} doesn't match both criteria`);
+          }
+        } else {
+          console.error(`❌ Failed to get replies for thread ${message.ts}:`, repliesResponse.data.error);
+        }
+      } else {
+        console.log(`📝 Message ${message.ts} has no replies, skipping`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error scanning threads:', error.message);
+    console.error('❌ Error details:', error.response?.data);
+  }
+
+  console.log(`🎯 Final result: Found ${matchingThreads.length} matching threads`);
+  return matchingThreads;
+}
+
+// Send checklist to matching thread with duplicate prevention
+async function sendChecklistToMatchingThread(thread, releaseData, assignments) {
+  console.log(`📋 Sending checklist to thread ${thread.threadTs}...`);
+  
+  // Find checklist page URL
+  let checklistUrl = null;
+  const checklistPage = releaseData.pages?.find(page => page.type === 'checklist');
+  if (checklistPage) {
+    checklistUrl = checklistPage.shortUrl || checklistPage.url;
+  }
+  
+  // If no checklist URL found, skip sending
+  if (!checklistUrl) {
+    console.log(`⚠️ No checklist URL found for thread ${thread.threadTs}, skipping`);
+    return { success: false, error: 'No checklist URL available' };
+  }
+
+  const releaseName = releaseData.releaseName || 'Current Release';
+
+  // Check if checklist was already sent to prevent duplicates
+  if (wasChecklistAlreadySent(thread.threadTs, releaseName, checklistUrl)) {
+    console.log(`🚫 Skipping duplicate checklist send to thread ${thread.threadTs}`);
+    return { skipped: true, reason: 'duplicate_prevention' };
+  }
+
+  try {
+    await sendChecklistToThread(thread.threadTs, thread.channelId, checklistUrl, releaseName);
+    
+    // Mark as sent to prevent future duplicates
+    markChecklistAsSent(thread.threadTs, releaseName, checklistUrl);
+    
+    console.log(`✅ Checklist sent to thread ${thread.threadTs}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send checklist to thread ${thread.threadTs}:`, error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+// Store enhanced workflow state
+async function storeEnhancedWorkflowState(workflowId, releaseData, assignments, channelId, matchingThreads, monitoringInfo = {}) {
+  if (!global.workflowStates) {
+    global.workflowStates = new Map();
+  }
+  
+  const workflowState = {
+    workflowId,
+    releaseData,
+    assignments,
+    channelId,
+    matchingThreads: matchingThreads.map(t => ({ threadTs: t.threadTs, channelId: t.channelId })),
+    status: monitoringInfo.monitoring ? 'monitoring_active' : 'enhanced_processing_complete',
+    createdAt: new Date().toISOString(),
+    ...monitoringInfo
+  };
+  
+  global.workflowStates.set(workflowId, workflowState);
+  console.log(`💾 Stored enhanced workflow state: ${workflowId} (monitoring: ${!!monitoringInfo.monitoring})`);
+}
+
+// Fallback to manual workflow state
+async function storeManualWorkflowState(workflowId, releaseData, assignments, channelId, messageTs) {
+  if (!global.workflowStates) {
+    global.workflowStates = new Map();
+  }
+  
+  const workflowState = {
+    workflowId,
+    releaseData,
+    assignments,
+    channelId,
+    messageTs,
+    status: 'awaiting_thread_mention',
+    createdAt: new Date().toISOString()
+  };
+  
+  global.workflowStates.set(workflowId, workflowState);
+  console.log(`💾 Stored manual workflow state: ${workflowId}`);
+}
+
+// Helper function to send fallback messages
+async function sendFallbackMessage(channelId, threadTs, message) {
+  const botToken = process.env.SLACK_BOT_TOKEN;
+  if (!botToken) {
+    console.warn('⚠️ No bot token available for fallback message');
+    console.log(`💬 Would send fallback message to thread ${threadTs} in channel ${channelId}: ${message}`);
+    return;
+  }
+
+  try {
+    const fallbackMessage = {
+      channel: channelId,
+      thread_ts: threadTs,
+      text: `🤖 ${message}`
+    };
+    
+    await axios.post('https://slack.com/api/chat.postMessage', fallbackMessage, {
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('✅ Fallback message sent');
+  } catch (error) {
+    console.error('❌ Failed to send fallback message:', error.message);
+  }
+}
+
+// Handle Slack interactive components (button clicks)
+app.post('/api/slack/interactive', async (req, res) => {
+  try {
+    console.log('Raw request body:', req.body);
+    
+    // Slack sends the payload as form-encoded
+    const payload = JSON.parse(req.body.payload || '{}');
+    
+    console.log('Received Slack interactive payload:', JSON.stringify(payload, null, 2));
+
+    if (payload.type === 'block_actions') {
+      const action = payload.actions[0];
+      
+      if (action.action_id === 'send_checklist_to_thread') {
+        console.log('Processing send_checklist_to_thread action');
+        console.log('Action value:', action.value);
+        
+        // Handle send checklist to thread button click
+        let actionValue = {};
+        let releaseData = {};
+        let assignments = {};
+        
+        try {
+          if (action.value && action.value !== '{}') {
+            actionValue = JSON.parse(action.value);
+            releaseData = actionValue.releaseData || {};
+            assignments = actionValue.assignments || {};
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse action value:', parseError.message);
+          console.warn('Action value was:', action.value);
+        }
+        
+        // Enhanced workflow: Intelligent thread detection and auto-send
+        const workflowId = `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const channelId = payload.channel?.id;
+        const messageTs = payload.message?.ts;
+        
+        console.log('🎯 Starting enhanced workflow with intelligent thread detection');
+        console.log('📋 Release data:', JSON.stringify(releaseData, null, 2));
+        console.log('👥 Assignments:', JSON.stringify(assignments, null, 2));
+        
+        // Trigger intelligent thread detection and auto-send
+        let workflowResult;
+        try {
+          workflowResult = await processIntelligentWorkflow(channelId, releaseData, assignments, workflowId);
+        } catch (error) {
+          console.error('❌ Enhanced workflow failed:', error.message);
+          // Fallback to manual workflow
+          await storeManualWorkflowState(workflowId, releaseData, assignments, channelId, messageTs);
+          workflowResult = { workflowId, monitoringActive: false, error: error.message };
+        }
+        
+        // Respond with enhanced workflow status
+        const responseMessage = {
+          text: `🎯 *Enhanced Workflow ${workflowResult.monitoringActive ? 'Activated' : 'Started'}!*\n\n🔍 *Intelligent Thread Detection:*\n• ${workflowResult.monitoringActive ? 'Continuous monitoring active' : 'Initial scan completed'}\n• Found ${workflowResult.initialThreads || 0} existing matching threads\n• ${workflowResult.monitoringActive ? 'Auto-scanning every 2 minutes for new threads' : 'Manual mode - mention bot in threads'}\n\n📋 *Release:* ${releaseData.releaseName || 'Test Release'}\n👨‍💻 *Dev:* ${assignments.dev || 'Not assigned'}\n👩‍🔬 *QA:* ${assignments.qa ? assignments.qa.join(', ') : 'Not assigned'}\n\n${workflowResult.monitoringActive ? '🔄 *Continuous Monitoring:*\n• Scans for new threads every 2 minutes\n• Auto-sends checklists to matching threads\n• Will auto-stop after 4 hours\n• Use `/stop-monitoring ${workflowId}` to stop manually' : '⚠️ *Manual Mode:*\nMonitoring failed to start. Please mention the bot in threads manually.'}\n\n🔗 *Workflow ID:* \`${workflowId}\``,
+          replace_original: false,
+          response_type: 'ephemeral'
+        };
+
+        console.log('Sending response:', responseMessage);
+        res.json(responseMessage);
+        return;
+      }
+    }
+
+    console.log('No matching action found, sending default response');
+    res.json({ text: 'Action received' });
+
+  } catch (error) {
+    console.error('Failed to handle Slack interactive component:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      text: 'Sorry, something went wrong processing your request.'
+    });
+  }
+});
+
+// Debug endpoint to check workflow states
+app.get('/api/slack/workflow-states', async (req, res) => {
+  try {
+    if (!global.workflowStates) {
+      return res.json({
+        success: true,
+        count: 0,
+        states: []
+      });
+    }
+
+    const states = Array.from(global.workflowStates.entries()).map(([id, state]) => ({
+      id,
+      ...state
+    }));
+
+    res.json({
+      success: true,
+      count: global.workflowStates.size,
+      states
+    });
+  } catch (error) {
+    console.error('Failed to get workflow states:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Send message to specific Slack thread
+app.post('/api/slack/send-to-thread', async (req, res) => {
+  try {
+    const { threadTs, channelId, checklistUrl, releaseName } = req.body;
+    
+    if (!threadTs || !channelId || !checklistUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: threadTs, channelId, checklistUrl'
+      });
+    }
+
+    // Check if Slack bot token is configured
+    const botToken = getBotToken();
+    if (!botToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Slack bot token not configured. Please configure it in Settings.'
+      });
+    }
+
+    console.log('Sending checklist to Slack thread...');
+    console.log('Thread TS:', threadTs);
+    console.log('Channel ID:', channelId);
+    console.log('Checklist URL:', checklistUrl);
+
+    // Format checklist message
+    const checklistMessage = {
+      channel: channelId,
+      thread_ts: threadTs,
+      text: `📋 *Release Checklist for ${releaseName}*`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `📋 *Release Checklist for ${releaseName}*\n\nHere's your comprehensive release checklist:`
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `🔗 <${checklistUrl}|Open Release Checklist>\n\n✅ Please review all items in the checklist\n🔄 Update progress as you complete each step\n💬 Use this thread for any questions or updates`
+          }
+        },
+        {
+          type: 'divider'
+        }
+      ]
+    };
+
+    // Send message using Slack Web API
+    const response = await axios.post('https://slack.com/api/chat.postMessage', checklistMessage, {
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    if (response.data.ok) {
+      console.log('✅ Checklist sent to thread successfully');
+      res.json({
+        success: true,
+        message: 'Checklist sent to thread successfully',
+        messageTs: response.data.ts
+      });
+    } else {
+      console.error('❌ Slack API error:', response.data.error);
+      res.status(400).json({
+        success: false,
+        error: `Slack API error: ${response.data.error}`
+      });
+    }
+
+  } catch (error) {
+    console.error('Failed to send message to Slack thread:', error.message);
+    
+    let errorMessage = 'Failed to send message to thread';
+    
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data;
+      
+      if (data && data.error) {
+        errorMessage = `Slack API error: ${data.error}`;
+      } else {
+        errorMessage = `HTTP error (${status}): ${error.message}`;
+      }
+    }
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+});
+
 // Get Jira field metadata (including custom fields)
 app.post('/api/jira/get-field-metadata', async (req, res) => {
   try {
@@ -3181,6 +4340,150 @@ app.post('/api/jira/get-issue-status-breakdown', async (req, res) => {
 
   } catch (error) {
     console.error('Error getting issue status breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Monitoring control endpoints
+app.post('/api/slack/stop-monitoring', async (req, res) => {
+  try {
+    const { workflowId } = req.body;
+    
+    if (!workflowId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Workflow ID is required'
+      });
+    }
+    
+    const result = stopWorkflowMonitoring(workflowId, 'manual_api');
+    
+    res.json({
+      success: true,
+      result
+    });
+  } catch (error) {
+    console.error('Failed to stop monitoring:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/slack/monitoring-status/:workflowId', async (req, res) => {
+  try {
+    const { workflowId } = req.params;
+    const status = getMonitoringStatus(workflowId);
+    
+    res.json({
+      success: true,
+      status
+    });
+  } catch (error) {
+    console.error('Failed to get monitoring status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Store frontend config in memory
+let frontendConfig = {
+  slackBotToken: null,
+  targetChannelId: null
+};
+
+// API to receive config from frontend
+app.post('/api/config/slack', (req, res) => {
+  try {
+    const { botToken, targetChannelId } = req.body;
+    
+    console.log('📡 Received Slack config from frontend:');
+    console.log(`🔑 Bot token: ${botToken ? 'PROVIDED' : 'MISSING'}`);
+    console.log(`📍 Channel ID: ${targetChannelId || 'NOT PROVIDED'}`);
+    
+    // Store in memory for server use
+    frontendConfig.slackBotToken = botToken;
+    frontendConfig.targetChannelId = targetChannelId;
+    
+    res.json({
+      success: true,
+      message: 'Slack configuration updated'
+    });
+  } catch (error) {
+    console.error('❌ Failed to update Slack config:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// API to get current config
+app.get('/api/config/slack', (req, res) => {
+  res.json({
+    success: true,
+    config: {
+      hasBotToken: !!frontendConfig.slackBotToken,
+      botTokenLength: frontendConfig.slackBotToken ? frontendConfig.slackBotToken.length : 0,
+      targetChannelId: frontendConfig.targetChannelId
+    }
+  });
+});
+
+// Helper function to get bot token (prioritize frontend config over env)
+function getBotToken() {
+  return frontendConfig.slackBotToken || process.env.SLACK_BOT_TOKEN;
+}
+
+// Helper function to get target channel ID (prioritize frontend config over env)
+function getTargetChannelId() {
+  return frontendConfig.targetChannelId || process.env.SLACK_TARGET_CHANNEL_ID || 'C09LTEX32AY';
+}
+
+// Test endpoint to check environment
+app.get('/api/test/environment', (req, res) => {
+  const envBotToken = process.env.SLACK_BOT_TOKEN;
+  const frontendBotToken = frontendConfig.slackBotToken;
+  const finalBotToken = getBotToken();
+  
+  res.json({
+    env: {
+      hasBotToken: !!envBotToken,
+      botTokenLength: envBotToken ? envBotToken.length : 0,
+      botTokenPrefix: envBotToken ? envBotToken.substring(0, 10) : 'none'
+    },
+    frontend: {
+      hasBotToken: !!frontendBotToken,
+      botTokenLength: frontendBotToken ? frontendBotToken.length : 0,
+      botTokenPrefix: frontendBotToken ? frontendBotToken.substring(0, 10) : 'none'
+    },
+    final: {
+      hasBotToken: !!finalBotToken,
+      botTokenLength: finalBotToken ? finalBotToken.length : 0,
+      botTokenPrefix: finalBotToken ? finalBotToken.substring(0, 10) : 'none'
+    },
+    nodeEnv: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/slack/list-monitors', async (req, res) => {
+  try {
+    const monitors = listActiveMonitors();
+    
+    res.json({
+      success: true,
+      monitors,
+      count: monitors.length
+    });
+  } catch (error) {
+    console.error('Failed to list monitors:', error);
     res.status(500).json({
       success: false,
       error: error.message

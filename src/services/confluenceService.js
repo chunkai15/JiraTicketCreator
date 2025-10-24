@@ -384,18 +384,46 @@ ${jiraMacro}
 
   // Generate checklist sub-page content with interactive checkboxes
   static generateChecklistContent(releaseName) {
+    // Check if this is an API-related version
+    const isApiRelated = releaseName && releaseName.toLowerCase().includes('api');
+    
     // Helper function to create interactive checkbox
     const createCheckbox = (id, label = "Done") => {
       return `<ac:task-list><ac:task><ac:task-id>${id}</ac:task-id><ac:task-status>incomplete</ac:task-status><ac:task-body>${label}</ac:task-body></ac:task></ac:task-list>`;
     };
 
     // Helper function to create disabled/empty cell
-    const emptyCell = () => '<td class="confluenceTd" style="background-color: #f5f5f5;"></td>';
+    const emptyCell = () => '<td class="confluenceTd" style="background-color: #f5f5f5; color: #999999;">-</td>';
     
     // Helper function to create normal checkbox cell
     const checkboxCell = (id) => `<td class="confluenceTd">${createCheckbox(id)}</td>`;
+    
+    // Helper function to create standard cell
+    const standardCell = (text) => `<td class="confluenceTd">${text}</td>`;
 
     let taskId = 1; // Counter for unique task IDs
+    
+    // Helper to create row based on specification
+    const createRow = (step, task, qa1Type, qa2Type, devType, smType = "") => {
+      const getCell = (type, content = "") => {
+        switch(type) {
+          case 'checkbox': return checkboxCell(taskId++);
+          case 'empty': return emptyCell();
+          case 'text': return standardCell(content);
+          default: return standardCell(content);
+        }
+      };
+
+      return `
+<tr>
+${standardCell(step)}
+${standardCell(task)}
+${getCell(qa1Type)}
+${getCell(qa2Type)}
+${getCell(devType)}
+${getCell(smType === 'checkbox' ? 'checkbox' : 'text', smType === 'checkbox' ? '' : smType)}
+</tr>`;
+    };
     
     // Generate content by building each row programmatically
     let content = `<table class="confluenceTable">
@@ -406,283 +434,63 @@ ${jiraMacro}
 <th class="confluenceTh">QA1</th>
 <th class="confluenceTh">QA2</th>
 <th class="confluenceTh">Dev</th>
-<th class="confluenceTh">Confirmed by SM that the checklist is completed</th>
+<th class="confluenceTh">Confirmed by SM/QA Manager that the checklist is completed @Thanh Ngo/ @Bao Ho</th>
 </tr>`;
 
-    // Step 1
-    content += `
-<tr>
-<td class="confluenceTd">1</td>
-<td class="confluenceTd">Finish all the bugs/tasks of version on develop branch</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd">@Thanh Ngo</td>
-</tr>`;
-
-    // Step 2
-    content += `
-<tr>
-<td class="confluenceTd">2</td>
-<td class="confluenceTd">All the cards are moved to "QA Success"</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 3
-    content += `
-<tr>
-<td class="confluenceTd">3</td>
-<td class="confluenceTd">Create release branch from develop branch</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 4
-    content += `
-<tr>
-<td class="confluenceTd">4</td>
-<td class="confluenceTd">Prepare the Staging environment</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 5
-    content += `
-<tr>
-<td class="confluenceTd">5</td>
-<td class="confluenceTd">Submit the release request on the release channel</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 6
-    content += `
-<tr>
-<td class="confluenceTd">6</td>
-<td class="confluenceTd">Deploy the build to the Staging</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 7
-    content += `
-<tr>
-<td class="confluenceTd">7</td>
-<td class="confluenceTd">Define the side affect OR the important cards of the previous release to re-test for the current release - Dev need to write/comment the side effect to the related card (if available)</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 8
-    content += `
-<tr>
-<td class="confluenceTd">8</td>
-<td class="confluenceTd">Ask Web & BE team to Confirm the API needed for any Web cards on the Staging</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 9
-    content += `
-<tr>
-<td class="confluenceTd">9</td>
-<td class="confluenceTd">The QA team create the Release checklist and reply to the channel to handle the release</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 10
-    content += `
-<tr>
-<td class="confluenceTd">10</td>
-<td class="confluenceTd">The QA team create the Regression checklist for the release</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 11
-    content += `
-<tr>
-<td class="confluenceTd">11</td>
-<td class="confluenceTd">Run the regression test on the Staging and finish the Regression checklist</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 11.1
-    content += `
-<tr>
-<td class="confluenceTd">11.1</td>
-<td class="confluenceTd">All the cards in QA State "passed on staging"</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 12 (Header - disabled)
-    content += `
-<tr style="background-color: #f0f0f0;">
-<td class="confluenceTd"><strong>12</strong></td>
-<td class="confluenceTd"><strong>Report the Staging regression test status to the release channel</strong></td>
-${emptyCell()}
-${emptyCell()}
-${emptyCell()}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 13
-    content += `
-<tr>
-<td class="confluenceTd">13</td>
-<td class="confluenceTd">The QA team confirm with the Manager to approve the release request</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 14 (Header - disabled)
-    content += `
-<tr style="background-color: #f0f0f0;">
-<td class="confluenceTd"><strong>14</strong></td>
-<td class="confluenceTd"><strong>Prepare the Production environment</strong></td>
-${emptyCell()}
-${emptyCell()}
-${emptyCell()}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 14.1
-    content += `
-<tr>
-<td class="confluenceTd">14.1</td>
-<td class="confluenceTd">Ask Dev for any additional configurations before processing release</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 14.2
-    content += `
-<tr>
-<td class="confluenceTd">14.2</td>
-<td class="confluenceTd">Prepare configuration for Kong Production and notify QA of any additional configurations</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 15
-    content += `
-<tr>
-<td class="confluenceTd">15</td>
-<td class="confluenceTd">Merge the code from release branch back to master branch</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 16 (Header - disabled)
-    content += `
-<tr style="background-color: #f0f0f0;">
-<td class="confluenceTd"><strong>16</strong></td>
-<td class="confluenceTd"><strong>Release to the Production</strong></td>
-${emptyCell()}
-${emptyCell()}
-${emptyCell()}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 17
-    content += `
-<tr>
-<td class="confluenceTd">17</td>
-<td class="confluenceTd">Release the build on Jira</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 18
-    content += `
-<tr>
-<td class="confluenceTd">18</td>
-<td class="confluenceTd">Release git</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 19
-    content += `
-<tr>
-<td class="confluenceTd">19</td>
-<td class="confluenceTd">Smoke test on the Production</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 20
-    content += `
-<tr>
-<td class="confluenceTd">20</td>
-<td class="confluenceTd">Report smoke test status to the release channel</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 21
-    content += `
-<tr>
-<td class="confluenceTd">21</td>
-<td class="confluenceTd">QA comment to the release channel if it needs to monitor the card after the release.<br/>QA comment on Jira card if it needs to monitor after release</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
-
-    // Step 22
-    content += `
-<tr>
-<td class="confluenceTd">22</td>
-<td class="confluenceTd">Merge the code from master branch to internal debug</td>
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-${checkboxCell(taskId++)}
-<td class="confluenceTd"></td>
-</tr>`;
+    if (isApiRelated) {
+      // API-related versions: 24 steps
+      content += createRow("1", "Finish all the bugs/tasks of version on develop branch", "empty", "empty", "checkbox", "checkbox");
+      content += createRow("2", "All the cards are moved to \"QA Success\"", "checkbox", "empty", "empty", "");
+      content += createRow("3", "Create release branch from develop branch", "empty", "empty", "checkbox", "");
+      content += createRow("4", "Prepare the Staging environment", "empty", "empty", "checkbox", "");
+      content += createRow("5", "Submit the release request on the release channel", "empty", "empty", "checkbox", "");
+      content += createRow("6", "Deploy the build to the Staging", "empty", "empty", "checkbox", "");
+      content += createRow("7", "Define the side affect OR the important cards of the previous release to re-test for the current release.<br/> - Dev need to write/comment the side effect to the related card (if available)", "checkbox", "empty", "checkbox", "");
+      content += createRow("8", "Check if Data Migration is needed, then create an API Data Migration regression checklist.", "checkbox", "empty", "checkbox", "");
+      content += createRow("9", "The QA team create the Release checklist and reply to the channel to handle the release", "checkbox", "empty", "empty", "");
+      content += createRow("10", "The QA team create the Regression checklist for the release", "checkbox", "empty", "empty", "");
+      content += createRow("11", "Run the regression test on the Staging and finish the Regression checklist", "checkbox", "checkbox", "empty", "");
+      content += createRow("12", "Report the Staging regression test status to the release channel", "checkbox", "checkbox", "empty", "");
+      content += createRow("13", "The QA team confirm with the Manager to approve the release request", "checkbox", "empty", "empty", "");
+      content += createRow("14", "Compare code on the Staging branch with the Release branch before releasing to Production", "empty", "empty", "checkbox", "");
+      content += createRow("15", "Prepare the Production environment", "empty", "empty", "checkbox", "");
+      content += createRow("16", "Merge the code from release branch back to master branch", "empty", "empty", "checkbox", "");
+      content += createRow("17", "Release the build to the Production", "empty", "empty", "checkbox", "");
+      content += createRow("18", "Release the build on Jira", "checkbox", "empty", "empty", "");
+      content += createRow("19", "Release git", "empty", "empty", "checkbox", "");
+      content += createRow("20", "Smoke test on the Production", "checkbox", "empty", "empty", "");
+      content += createRow("21", "QA needs to double check on the Production to make sure the data is correctly migrated", "checkbox", "checkbox", "empty", "");
+      content += createRow("22", "Report smoke test status to the release channel", "checkbox", "empty", "empty", "");
+      content += createRow("23", "QA comment to the release channel if it needs to monitor the card after the release.<br/>QA comment on Jira card if it needs to monitor after release", "checkbox", "checkbox", "empty", "");
+      content += createRow("24", "Merge the code from master branch to dev branch", "empty", "empty", "checkbox", "");
+    } else {
+      // Web versions: 23 steps (with 15.1, 15.2)
+      content += createRow("1", "Finish all the bugs/tasks of version on develop branch", "empty", "empty", "checkbox", "checkbox");
+      content += createRow("2", "All the cards are moved to \"QA Success\"", "checkbox", "empty", "empty", "");
+      content += createRow("3", "Create release branch from develop branch", "empty", "empty", "checkbox", "");
+      content += createRow("4", "Prepare the Staging environment", "empty", "empty", "checkbox", "");
+      content += createRow("5", "Submit the release request on the release channel", "empty", "empty", "checkbox", "");
+      content += createRow("6", "Deploy the build to the Staging", "empty", "empty", "checkbox", "");
+      content += createRow("7", "Define the side affect OR the important cards of the previous release to re-test for the current release.<br/> - Dev need to write/comment the side effect to the related card (if available)", "checkbox", "empty", "checkbox", "");
+      content += createRow("8", "Confirm with the API team for the API needed on the Staging", "checkbox", "empty", "checkbox", "");
+      content += createRow("9", "The QA team create the Release checklist and reply to the channel to handle the release", "checkbox", "empty", "empty", "");
+      content += createRow("10", "The QA team create the Regression checklist for the release", "checkbox", "empty", "empty", "");
+      content += createRow("11", "Run the regression test on the Staging and finish the Regression checklist", "checkbox", "checkbox", "empty", "");
+      content += createRow("12", "Report the Staging regression test status to the release channel", "checkbox", "checkbox", "empty", "");
+      content += createRow("13", "The QA team confirm with the Manager to approve the release request", "checkbox", "empty", "empty", "");
+      content += createRow("14", "Compare code on the Staging branch with the Release branch before releasing to Production", "empty", "empty", "checkbox", "");
+      content += createRow("15", "Prepare the Production environment", "empty", "empty", "checkbox", "");
+      content += createRow("15.1", "Ask Dev for any additional configurations before processing release", "checkbox", "empty", "empty", "");
+      content += createRow("15.2", "Prepare configuration for Kong Production and notify QA of any additional configurations", "empty", "empty", "checkbox", "");
+      content += createRow("16", "Merge the code from release branch back to master branch", "empty", "empty", "checkbox", "");
+      content += createRow("17", "Release to the Production", "empty", "empty", "checkbox", "");
+      content += createRow("18", "Release the build on Jira", "checkbox", "empty", "empty", "");
+      content += createRow("19", "Release git", "empty", "empty", "checkbox", "");
+      content += createRow("20", "Smoke test on the Production", "checkbox", "empty", "empty", "");
+      content += createRow("21", "Report smoke test status to the release channel", "checkbox", "empty", "empty", "");
+      content += createRow("22", "QA comment to the release channel if it needs to monitor the card after the release.<br/>QA comment on Jira card if it needs to monitor after release", "checkbox", "checkbox", "empty", "");
+      content += createRow("23", "Merge the code from master branch to internal debug", "empty", "empty", "checkbox", "");
+    }
 
     // Close table and add instructions
     content += `
@@ -691,9 +499,9 @@ ${checkboxCell(taskId++)}
 
 <p><strong>Instructions:</strong></p>
 <ul>
-<li>Click checkboxes to mark tasks as complete</li>
-<li>Gray rows (12, 14, 16) are section headers - no action needed</li>
-<li>@mentions indicate responsible person for confirmation</li>
+<li>✅ Check off each completed step by clicking the checkbox</li>
+<li>⭕ Gray cells with "-" indicate no action needed for that role</li>
+<li>🎯 All steps must be completed before release</li>
 </ul>`;
 
     return content;

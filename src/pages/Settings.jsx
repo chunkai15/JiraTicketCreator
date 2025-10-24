@@ -53,7 +53,8 @@ const Settings = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
     jira: false,
-    confluence: false
+    confluence: false,
+    slack: false
   });
   const [connectionStatus, setConnectionStatus] = useState({
     jira: null,
@@ -80,7 +81,10 @@ const Settings = () => {
   });
 
   const [slackConfig, setSlackConfig] = useState({
-    webhookUrl: ''
+    webhookUrl: '',
+    botToken: '',
+    targetChannelId: 'C09LTEX32AY', // Default to kai-test
+    targetChannelName: '#kai-test'
   });
 
   // Load saved configurations on mount
@@ -88,6 +92,33 @@ const Settings = () => {
     console.log('🎯 Settings_New component mounted');
     loadConfigurations();
   }, []);
+
+  // Sync Slack config with server when user changes config
+  const syncSlackConfigWithServer = async (botToken, targetChannelId) => {
+    if (botToken || targetChannelId) {
+      try {
+        console.log('📡 Syncing Slack config with server...');
+        const response = await fetch('http://localhost:3001/api/config/slack', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            botToken: botToken,
+            targetChannelId: targetChannelId
+          })
+        });
+        
+        if (response.ok) {
+          console.log('✅ Slack config synced with server');
+        } else {
+          console.warn('⚠️ Failed to sync Slack config with server');
+        }
+      } catch (error) {
+        console.error('❌ Error syncing Slack config with server:', error);
+      }
+    }
+  };
 
   const loadConfigurations = () => {
     try {
@@ -115,11 +146,19 @@ const Settings = () => {
 
       // Load Slack config
       const savedSlackUrl = SlackService.getWebhookUrl();
-      if (savedSlackUrl) {
-        setSlackConfig({ webhookUrl: savedSlackUrl });
-      }
+      const savedBotToken = localStorage.getItem('slack_bot_token');
+      const savedChannelId = localStorage.getItem('slack_target_channel_id');
+      const savedChannelName = localStorage.getItem('slack_target_channel_name');
+      
+      setSlackConfig({
+        webhookUrl: savedSlackUrl || '',
+        botToken: savedBotToken || '',
+        targetChannelId: savedChannelId || 'C09LTEX32AY',
+        targetChannelName: savedChannelName || '#kai-test'
+      });
 
       console.log('✅ Configurations loaded successfully');
+      
     } catch (error) {
       console.error('❌ Failed to load configurations:', error);
       toast.error({
@@ -148,7 +187,22 @@ const Settings = () => {
   };
 
   const handleSlackConfigChange = (field, value) => {
-    setSlackConfig(prev => ({ ...prev, [field]: value }));
+    setSlackConfig(prev => {
+      const newConfig = { ...prev, [field]: value };
+      
+      // Sync with server when bot token or channel ID changes
+      if (field === 'botToken' || field === 'targetChannelId') {
+        // Debounce the sync to avoid too many calls while typing
+        setTimeout(() => {
+          syncSlackConfigWithServer(
+            field === 'botToken' ? value : newConfig.botToken,
+            field === 'targetChannelId' ? value : newConfig.targetChannelId
+          );
+        }, 1000);
+      }
+      
+      return newConfig;
+    });
     setHasUnsavedChanges(true);
   };
 
@@ -305,6 +359,18 @@ const Settings = () => {
       if (slackConfig.webhookUrl) {
         SlackService.saveWebhookUrl(slackConfig.webhookUrl);
       }
+      if (slackConfig.botToken) {
+        localStorage.setItem('slack_bot_token', slackConfig.botToken);
+      }
+      if (slackConfig.targetChannelId) {
+        localStorage.setItem('slack_target_channel_id', slackConfig.targetChannelId);
+      }
+      if (slackConfig.targetChannelName) {
+        localStorage.setItem('slack_target_channel_name', slackConfig.targetChannelName);
+      }
+
+      // Sync Slack config with server after saving
+      await syncSlackConfigWithServer(slackConfig.botToken, slackConfig.targetChannelId);
 
       setHasUnsavedChanges(false);
       toast.success({
@@ -722,23 +788,69 @@ const Settings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="slack-webhook">Slack Webhook URL</Label>
-                <div className="flex gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="slack-webhook">Slack Webhook URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="slack-webhook"
+                      placeholder="https://hooks.slack.com/services/..."
+                      value={slackConfig.webhookUrl}
+                      onChange={(e) => handleSlackConfigChange('webhookUrl', e.target.value)}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(slackConfig.webhookUrl, 'Slack Webhook')}
+                      disabled={!slackConfig.webhookUrl}
+                    >
+                      {copiedField === 'Slack Webhook' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">For basic notifications</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slack-bot-token">Slack Bot Token (Enhanced)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="slack-bot-token"
+                      type="password"
+                      placeholder="xoxb-your-bot-token"
+                      value={slackConfig.botToken}
+                      onChange={(e) => handleSlackConfigChange('botToken', e.target.value)}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => togglePasswordVisibility('slack')}
+                    >
+                      {showPasswords.slack ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">For interactive features</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slack-channel-id">Target Channel ID</Label>
                   <Input
-                    id="slack-webhook"
-                    placeholder="https://hooks.slack.com/services/..."
-                    value={slackConfig.webhookUrl}
-                    onChange={(e) => handleSlackConfigChange('webhookUrl', e.target.value)}
+                    id="slack-channel-id"
+                    placeholder="C09LTEX32AY"
+                    value={slackConfig.targetChannelId}
+                    onChange={(e) => handleSlackConfigChange('targetChannelId', e.target.value)}
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(slackConfig.webhookUrl, 'Slack Webhook')}
-                    disabled={!slackConfig.webhookUrl}
-                  >
-                    {copiedField === 'Slack Webhook' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  </Button>
+                  <p className="text-xs text-muted-foreground">Channel where threads are detected</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slack-channel-name">Channel Name</Label>
+                  <Input
+                    id="slack-channel-name"
+                    placeholder="#kai-test"
+                    value={slackConfig.targetChannelName}
+                    onChange={(e) => handleSlackConfigChange('targetChannelName', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Display name for reference</p>
                 </div>
               </div>
 
@@ -756,6 +868,69 @@ const Settings = () => {
                   </div>
                 </AlertDescription>
               </Alert>
+
+              <Separator />
+
+              {/* Enhanced Workflow Configuration */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 bg-purple-600 rounded-full"></div>
+                  <Label className="text-base font-medium">Enhanced Workflow (Optional)</Label>
+                </div>
+                
+                <Alert className="border-purple-200 bg-purple-50">
+                  <Slack className="h-4 w-4 text-purple-600" />
+                  <AlertDescription>
+                    <div className="space-y-3">
+                      <p className="font-medium text-purple-800">🚀 New Enhanced Slack Workflow Available!</p>
+                      <div className="text-sm space-y-2">
+                        <p>The enhanced workflow adds:</p>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>Team assignment tracking (Dev & QA)</li>
+                          <li>Interactive buttons for workflow actions</li>
+                          <li>Automatic checklist delivery to threads</li>
+                          <li>Better coordination between team members</li>
+                        </ul>
+                        <p className="font-medium">To enable enhanced features:</p>
+                        <ol className="list-decimal list-inside space-y-1 ml-4">
+                          <li>Create a Slack App with bot capabilities</li>
+                          <li>Add the bot token to your environment variables</li>
+                          <li>Configure interactive components</li>
+                          <li>Use the enhanced workflow panel after creating releases</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Slack Bot Status</Label>
+                    <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+                      <div className="h-2 w-2 bg-orange-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm">Enhanced features require bot token configuration</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Workflow Features</Label>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="h-1.5 w-1.5 bg-green-500 rounded-full"></div>
+                        <span>Basic notifications</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="h-1.5 w-1.5 bg-gray-300 rounded-full"></div>
+                        <span>Interactive components (requires bot)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="h-1.5 w-1.5 bg-gray-300 rounded-full"></div>
+                        <span>Thread management (requires bot)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -894,41 +1069,95 @@ const Settings = () => {
             </TabsContent>
 
             <TabsContent value="slack-setup">
-              <Alert>
-                <Slack className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="space-y-4">
-                    <p className="font-medium">Slack Integration Guide:</p>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <p className="font-medium text-sm">1. Create Incoming Webhook:</p>
-                        <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                          <li>• Go to your <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Slack Apps</a></li>
-                          <li>• Create new app or use existing</li>
-                          <li>• Enable "Incoming Webhooks"</li>
-                          <li>• Add webhook to workspace</li>
-                        </ul>
-                      </div>
+              <div className="space-y-6">
+                <Alert>
+                  <Slack className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-4">
+                      <p className="font-medium">Basic Slack Integration Guide:</p>
                       
-                      <div>
-                        <p className="font-medium text-sm">2. Choose Channel:</p>
-                        <p className="text-sm text-muted-foreground">Select channel for release notifications (e.g., #releases, #engineering)</p>
-                      </div>
-                      
-                      <div>
-                        <p className="font-medium text-sm">3. Copy Webhook URL:</p>
-                        <p className="text-sm text-muted-foreground">Format: <code>https://hooks.slack.com/services/...</code></p>
-                      </div>
-                      
-                      <div>
-                        <p className="font-medium text-sm">4. Test Notification:</p>
-                        <p className="text-sm text-muted-foreground">Create a release page to test Slack notifications</p>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="font-medium text-sm">1. Create Incoming Webhook:</p>
+                          <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                            <li>• Go to your <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Slack Apps</a></li>
+                            <li>• Create new app or use existing</li>
+                            <li>• Enable "Incoming Webhooks"</li>
+                            <li>• Add webhook to workspace</li>
+                          </ul>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium text-sm">2. Choose Channel:</p>
+                          <p className="text-sm text-muted-foreground">Select channel for release notifications (e.g., #releases, #engineering)</p>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium text-sm">3. Copy Webhook URL:</p>
+                          <p className="text-sm text-muted-foreground">Format: <code>https://hooks.slack.com/services/...</code></p>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium text-sm">4. Test Notification:</p>
+                          <p className="text-sm text-muted-foreground">Create a release page to test Slack notifications</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </AlertDescription>
-              </Alert>
+                  </AlertDescription>
+                </Alert>
+
+                <Alert className="border-purple-200 bg-purple-50">
+                  <Slack className="h-4 w-4 text-purple-600" />
+                  <AlertDescription>
+                    <div className="space-y-4">
+                      <p className="font-medium text-purple-800">🚀 Enhanced Workflow Setup (Advanced):</p>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <p className="font-medium text-sm">1. Create Slack Bot App:</p>
+                          <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                            <li>• Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Slack Apps</a> and create new app</li>
+                            <li>• Choose "From scratch" and select your workspace</li>
+                            <li>• Go to "OAuth & Permissions" in sidebar</li>
+                            <li>• Add Bot Token Scopes: <code>chat:write</code>, <code>channels:history</code>, <code>app_mentions:read</code></li>
+                            <li>• Install app to workspace</li>
+                          </ul>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium text-sm">2. Configure Interactive Components:</p>
+                          <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                            <li>• Go to "Interactivity & Shortcuts" in sidebar</li>
+                            <li>• Turn on "Interactivity"</li>
+                            <li>• Set Request URL: <code>https://your-domain.com/api/slack/interactive</code></li>
+                            <li>• Save changes</li>
+                          </ul>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium text-sm">3. Environment Configuration:</p>
+                          <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                            <li>• Copy Bot User OAuth Token (starts with <code>xoxb-</code>)</li>
+                            <li>• Add to environment: <code>SLACK_BOT_TOKEN=xoxb-your-token</code></li>
+                            <li>• Copy Signing Secret from "Basic Information"</li>
+                            <li>• Add to environment: <code>SLACK_SIGNING_SECRET=your-secret</code></li>
+                          </ul>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium text-sm">4. Test Enhanced Features:</p>
+                          <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                            <li>• Create a release page</li>
+                            <li>• Use the Enhanced Slack Workflow panel</li>
+                            <li>• Assign team members and send notification</li>
+                            <li>• Test interactive buttons and thread messaging</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>
