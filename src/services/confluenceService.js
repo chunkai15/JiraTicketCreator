@@ -434,7 +434,7 @@ ${getCell(smType === 'checkbox' ? 'checkbox' : 'text', smType === 'checkbox' ? '
 <th class="confluenceTh">QA1</th>
 <th class="confluenceTh">QA2</th>
 <th class="confluenceTh">Dev</th>
-<th class="confluenceTh">Confirmed by SM/QA Manager that the checklist is completed @Thanh Ngo/ @Bao Ho</th>
+<th class="confluenceTh">Confirmed by SMs that the checklist is completed <ac:link><ri:user ri:account-id="5ebe4253833be70b7e45a444" /></ac:link>/ <ac:link><ri:user ri:account-id="633108fda84c7f79c3865027" /></ac:link>/ <ac:link><ri:user ri:account-id="5ddab5e27474110e231129ef" /></ac:link></th>
 </tr>`;
 
     if (isApiRelated) {
