@@ -11,6 +11,16 @@ const PORT = process.env.PORT || 3001;
 // Vercel deployment compatibility
 const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
 
+function normalizeProjectKeys(payload = {}) {
+  const projectKeys = Array.isArray(payload.projectKeys) && payload.projectKeys.length > 0
+    ? payload.projectKeys
+    : payload.projectKey
+      ? [payload.projectKey]
+      : [];
+
+  return [...new Set(projectKeys.filter(Boolean).map((key) => key.trim()))];
+}
+
 // Generate complete checklist content with all 22 steps
 // Generate ADF (Atlas Document Format) for Cloud Editor native compatibility
 function generateCompleteChecklistADF(releaseName) {
@@ -1926,12 +1936,13 @@ app.post('/api/jira/project-metadata', async (req, res) => {
 // Get project releases/versions
 app.post('/api/jira/get-releases', async (req, res) => {
   try {
-    const { url, email, token, projectKey } = req.body;
+    const { url, email, token } = req.body;
+    const projectKeys = normalizeProjectKeys(req.body);
 
-    if (!url || !email || !token || !projectKey) {
+    if (!url || !email || !token || projectKeys.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: url, email, token, projectKey'
+        error: 'Missing required fields: url, email, token, projectKey or projectKeys'
       });
     }
 
@@ -1941,52 +1952,72 @@ app.post('/api/jira/get-releases', async (req, res) => {
       password: token
     };
 
-    console.log(`Fetching releases for project: ${projectKey}`);
+    console.log(`Fetching releases for projects: ${projectKeys.join(', ')}`);
 
-    // Get project versions (releases)
-    const response = await axios.get(
-      `${baseURL}/rest/api/3/project/${projectKey}/versions`,
-      {
-        auth,
-        timeout: 15000,
-        headers: {
-          'Accept': 'application/json'
+    const projectResponses = await Promise.allSettled(projectKeys.map(async (projectKey) => {
+      const response = await axios.get(
+        `${baseURL}/rest/api/3/project/${projectKey}/versions`,
+        {
+          auth,
+          timeout: 15000,
+          headers: {
+            'Accept': 'application/json'
+          }
         }
-      }
-    );
+      );
 
-    // Sort versions: Unreleased first, then Released by release date (newest first)
-    const sortedVersions = response.data.sort((a, b) => {
-      // Unreleased versions come first
-      if (!a.released && b.released) return -1;
-      if (a.released && !b.released) return 1;
-
-      // If both have same release status, sort by release date (newest first)
-      if (a.releaseDate && b.releaseDate) {
-        return new Date(b.releaseDate) - new Date(a.releaseDate);
-      }
-
-      // If no release date, sort by name
-      return a.name.localeCompare(b.name);
-    });
-
-    const formattedVersions = sortedVersions.map(version => ({
-      id: version.id,
-      name: version.name,
-      description: version.description || '',
-      releaseDate: version.releaseDate || null,
-      released: version.released,
-      archived: version.archived,
-      startDate: version.startDate || null
+      return response.data.map(version => ({
+        id: `${projectKey}:${version.id}`,
+        jiraVersionId: version.id,
+        name: version.name,
+        description: version.description || '',
+        releaseDate: version.releaseDate || null,
+        released: version.released,
+        archived: version.archived,
+        startDate: version.startDate || null,
+        projectKey
+      }));
     }));
 
-    console.log(`Found ${formattedVersions.length} versions for project ${projectKey}`);
+    const failedProjects = projectResponses
+      .map((result, index) => ({ result, projectKey: projectKeys[index] }))
+      .filter(({ result }) => result.status === 'rejected');
+
+    if (failedProjects.length === projectKeys.length) {
+      throw failedProjects[0].result.reason;
+    }
+
+    const formattedVersions = projectResponses
+      .filter((result) => result.status === 'fulfilled')
+      .flatMap((result) => result.value)
+      .sort((a, b) => {
+        if (!a.released && b.released) return -1;
+        if (a.released && !b.released) return 1;
+
+        if (a.releaseDate && b.releaseDate) {
+          return new Date(b.releaseDate) - new Date(a.releaseDate);
+        }
+
+        if (a.name !== b.name) {
+          return a.name.localeCompare(b.name);
+        }
+
+        return a.projectKey.localeCompare(b.projectKey);
+      });
+
+    console.log(`Found ${formattedVersions.length} versions across ${projectKeys.length} projects`);
 
     res.json({
       success: true,
       releases: formattedVersions,
+      requestedProjectKeys: projectKeys,
+      failedProjects: failedProjects.map(({ projectKey, result }) => ({
+        projectKey,
+        error: result.reason?.response?.data?.errorMessages?.join(', ') || result.reason?.message || 'Failed to fetch releases'
+      })),
       project: {
-        key: projectKey
+        key: projectKeys[0],
+        keys: projectKeys
       }
     });
 
@@ -2552,6 +2583,84 @@ app.post('/api/confluence/get-page-info', async (req, res) => {
           break;
         case 403:
           errorMessage = 'No permission to access this page.';
+          break;
+        default:
+          errorMessage = `API error (${status}): ${error.response.data?.message || error.message}`;
+      }
+    }
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+});
+
+app.post('/api/confluence/get-folder-children', async (req, res) => {
+  try {
+    const { url, email, token, folderId } = req.body;
+
+    if (!url || !email || !token || !folderId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: url, email, token, folderId'
+      });
+    }
+
+    const baseURL = url.replace(/\/$/, '');
+    const auth = {
+      username: email,
+      password: token
+    };
+
+    const folderEndpoint = baseURL.endsWith('/wiki')
+      ? `${baseURL}/api/v2/folders/${folderId}/direct-children`
+      : `${baseURL}/wiki/api/v2/folders/${folderId}/direct-children`;
+
+    console.log(`📁 Fetching direct children for Confluence folder: ${folderId}`);
+
+    const response = await axios.get(folderEndpoint, {
+      params: {
+        limit: 100
+      },
+      auth,
+      timeout: 15000,
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    const items = Array.isArray(response.data?.results)
+      ? response.data.results.map((item) => ({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          status: item.status,
+          childPosition: item.childPosition
+        }))
+      : [];
+
+    res.json({
+      success: true,
+      folderId,
+      items
+    });
+  } catch (error) {
+    console.error('Failed to fetch Confluence folder children:', error.message);
+
+    let errorMessage = 'Failed to fetch Confluence folder children';
+
+    if (error.response) {
+      const status = error.response.status;
+      switch (status) {
+        case 404:
+          errorMessage = 'Folder not found. Please check your Folder URL or ID.';
+          break;
+        case 403:
+          errorMessage = 'No permission to access this folder.';
+          break;
+        case 401:
+          errorMessage = 'Authentication failed. Please check your Confluence credentials.';
           break;
         default:
           errorMessage = `API error (${status}): ${error.response.data?.message || error.message}`;
@@ -4507,4 +4616,3 @@ app.get('/api/slack/list-monitors', async (req, res) => {
 
 // Export for Vercel serverless functions
 module.exports = app;
-

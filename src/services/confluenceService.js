@@ -109,6 +109,38 @@ export class ConfluenceService {
     }
   }
 
+  async getFolderChildren(folderId) {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/confluence/get-folder-children`,
+        {
+          url: this.config.url,
+          email: this.config.email,
+          token: this.config.token,
+          folderId
+        },
+        {
+          timeout: 15000
+        }
+      );
+
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Failed to get folder children:', error);
+
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Failed to fetch folder children',
+        data: {
+          items: []
+        }
+      };
+    }
+  }
+
   // Create main release page
   async createPage(spaceKey, parentId, title, content) {
     try {

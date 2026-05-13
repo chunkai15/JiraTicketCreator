@@ -2,6 +2,16 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 
+const normalizeProjectKeys = (config = {}) => {
+  const projectKeys = Array.isArray(config.projectKeys) && config.projectKeys.length > 0
+    ? config.projectKeys
+    : config.projectKey
+      ? [config.projectKey]
+      : [];
+
+  return [...new Set(projectKeys.filter(Boolean).map(key => key.trim()))];
+};
+
 export class JiraReleasesService {
   constructor(config) {
     this.config = config;
@@ -10,13 +20,15 @@ export class JiraReleasesService {
   // Get all releases/versions for a project
   async getReleases() {
     try {
+      const projectKeys = normalizeProjectKeys(this.config);
       const response = await axios.post(
         `${API_BASE_URL}/jira/get-releases`,
         {
           url: this.config.url,
           email: this.config.email,
           token: this.config.token,
-          projectKey: this.config.projectKey
+          projectKey: this.config.projectKey,
+          projectKeys
         },
         {
           timeout: 20000
@@ -133,6 +145,7 @@ export class JiraReleasesService {
   // Validate configuration
   static validateConfig(config) {
     const errors = [];
+    const projectKeys = normalizeProjectKeys(config);
     
     if (!config.url || !config.url.trim()) {
       errors.push('Jira URL is required');
@@ -146,8 +159,8 @@ export class JiraReleasesService {
       errors.push('API token is required');
     }
     
-    if (!config.projectKey || !config.projectKey.trim()) {
-      errors.push('Project key is required');
+    if (projectKeys.length === 0) {
+      errors.push('At least one project key is required');
     }
     
     return {
@@ -190,4 +203,3 @@ export class JiraReleasesService {
 }
 
 export default JiraReleasesService;
-

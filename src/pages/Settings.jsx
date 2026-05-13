@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings as SettingsIcon, 
   Home, 
@@ -44,6 +44,26 @@ import ConfluenceService from '../services/confluenceService';
 import SlackService from '../services/slackService';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
+const JIRA_PROJECT_OPTIONS = [
+  { key: 'MP', label: 'Marketplace' },
+  { key: 'PAY', label: 'Payment' },
+  { key: 'UP', label: 'Core Platform' },
+  { key: 'AIT', label: 'Core AI' }
+];
+
+const extractConfluenceFolderId = (value = '') => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const folderMatch = trimmed.match(/\/folder\/(\d+)/);
+  if (folderMatch) {
+    return folderMatch[1];
+  }
+
+  const idMatch = trimmed.match(/^\d+$/);
+  return idMatch ? idMatch[0] : '';
+};
+
 const Settings = () => {
   const { toast } = useToast();
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -51,6 +71,7 @@ const Settings = () => {
   // Protect against unsaved changes
   useUnsavedChanges(hasUnsavedChanges, 'You have unsaved configuration changes. Are you sure you want to leave?');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeConfigTab, setActiveConfigTab] = useState('jira');
   const [showPasswords, setShowPasswords] = useState({
     jira: false,
     confluence: false,
@@ -63,13 +84,18 @@ const Settings = () => {
   const [copiedField, setCopiedField] = useState(null);
   const [confluenceSpaces, setConfluenceSpaces] = useState([]);
   const [loadingSpaces, setLoadingSpaces] = useState(false);
+  const [folderChildren, setFolderChildren] = useState([]);
+  const [loadingFolderChildren, setLoadingFolderChildren] = useState(false);
+  const spacesRequestRef = useRef({ inFlight: false, signature: '' });
+  const folderRequestRef = useRef({ inFlight: false, signature: '' });
 
   // Form states
   const [jiraConfig, setJiraConfig] = useState({
     url: 'https://everfit.atlassian.net',
     email: '',
     token: '',
-    projectKey: 'MP' // Default to MP
+    projectKey: 'MP',
+    projectKeys: ['MP', 'PAY']
   });
 
   const [confluenceConfig, setConfluenceConfig] = useState({
@@ -77,6 +103,8 @@ const Settings = () => {
     email: '',
     token: '',
     spaceKey: '',
+    folderSource: '',
+    folderId: '',
     parentPageId: ''
   });
 
@@ -86,6 +114,11 @@ const Settings = () => {
     targetChannelId: 'C09LTEX32AY', // Default to kai-test
     targetChannelName: '#kai-test'
   });
+
+  const detectedConfluenceFolderId = extractConfluenceFolderId(
+    confluenceConfig.folderSource || confluenceConfig.folderId || ''
+  );
+  const canLoadFolderChildren = !!detectedConfluenceFolderId && !loadingFolderChildren;
 
   // Load saved configurations on mount
   useEffect(() => {
@@ -135,10 +168,6 @@ const Settings = () => {
       const savedConfluenceConfig = ConfigService.loadConfluenceConfig();
       if (savedConfluenceConfig) {
         setConfluenceConfig(savedConfluenceConfig);
-        // Auto-load spaces in background
-        setTimeout(() => {
-          loadConfluenceSpaces(savedConfluenceConfig);
-        }, 500);
       } else {
         // Keep default values already set in state
         console.log('🔧 Using default Confluence URL: https://everfit.atlassian.net/wiki');
@@ -169,7 +198,20 @@ const Settings = () => {
   };
 
   const handleJiraConfigChange = (field, value) => {
-    setJiraConfig(prev => ({ ...prev, [field]: value }));
+    setJiraConfig(prev => {
+      const nextConfig = { ...prev, [field]: value };
+
+      if (field === 'projectKeys') {
+        nextConfig.projectKeys = value;
+        nextConfig.projectKey = value[0] || '';
+      }
+
+      if (field === 'projectKey') {
+        nextConfig.projectKeys = value ? [value] : [];
+      }
+
+      return nextConfig;
+    });
     setHasUnsavedChanges(true);
     // Reset connection status when config changes
     if (connectionStatus.jira !== null) {
@@ -177,14 +219,133 @@ const Settings = () => {
     }
   };
 
+  const toggleJiraProjectKey = (projectKey) => {
+    const nextKeys = jiraConfig.projectKeys.includes(projectKey)
+      ? jiraConfig.projectKeys.filter((key) => key !== projectKey)
+      : [...jiraConfig.projectKeys, projectKey];
+
+    handleJiraConfigChange('projectKeys', nextKeys);
+  };
+
   const handleConfluenceConfigChange = (field, value) => {
-    setConfluenceConfig(prev => ({ ...prev, [field]: value }));
+    if (field === 'folderSource') {
+      setFolderChildren([]);
+    }
+
+    setConfluenceConfig(prev => {
+      const nextConfig = { ...prev, [field]: value };
+
+      if (field === 'folderSource') {
+        nextConfig.folderId = extractConfluenceFolderId(value);
+        nextConfig.parentPageId = '';
+      }
+
+      return nextConfig;
+    });
     setHasUnsavedChanges(true);
     // Reset connection status when config changes
-    if (connectionStatus.confluence !== null) {
+    if (connectionStatus.confluence !== null && ['url', 'email', 'token'].includes(field)) {
       setConnectionStatus(prev => ({ ...prev, confluence: null }));
     }
   };
+
+  const loadFolderChildren = async (config = confluenceConfig, folderIdOverride = '', options = {}) => {
+    const { force = false, showToast = true } = options;
+    const folderId = folderIdOverride || extractConfluenceFolderId(config.folderSource || config.folderId || '');
+    const requestSignature = `${config.url}|${config.email}|${folderId}`;
+
+    if (!config.url || !config.email || !config.token || !folderId) {
+      if (showToast) {
+        toast.error({
+          title: 'Missing Folder Configuration',
+          description: 'Please provide a valid Confluence folder URL or folder ID first.'
+        });
+      }
+      return;
+    }
+
+    if (!force && folderRequestRef.current.inFlight && folderRequestRef.current.signature === requestSignature) {
+      return;
+    }
+
+    if (!force && folderRequestRef.current.signature === requestSignature && folderChildren.length > 0) {
+      return;
+    }
+
+    folderRequestRef.current = { inFlight: true, signature: requestSignature };
+    setLoadingFolderChildren(true);
+
+    try {
+      console.log('📁 Loading Confluence folder children...', {
+        folderId,
+        url: config.url,
+        email: config.email,
+        hasToken: !!config.token
+      });
+      const confluenceService = new ConfluenceService(config);
+      const result = await confluenceService.getFolderChildren(folderId);
+
+      if (result.success) {
+        const items = result.data.items || [];
+        setFolderChildren(items);
+        setConfluenceConfig(prev => ({
+          ...prev,
+          folderId,
+          parentPageId: prev.parentPageId || items[0]?.id || ''
+        }));
+        setHasUnsavedChanges(true);
+        if (showToast) {
+          toast.success({
+            title: 'Folder Items Loaded',
+            description: `Found ${items.length} direct item(s) under folder ${folderId}`
+          });
+        }
+      } else {
+        setFolderChildren([]);
+        if (showToast) {
+          toast.error({
+            title: 'Failed to Load Folder Items',
+            description: result.error || 'Could not fetch direct folder children'
+          });
+        }
+      }
+    } catch (error) {
+      setFolderChildren([]);
+      if (showToast) {
+        toast.error({
+          title: 'Folder Load Error',
+          description: error.message || 'An error occurred while loading folder children'
+        });
+      }
+    } finally {
+      folderRequestRef.current = { ...folderRequestRef.current, inFlight: false };
+      setLoadingFolderChildren(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeConfigTab !== 'confluence') {
+      return;
+    }
+
+      if (confluenceConfig.url && confluenceConfig.email && confluenceConfig.token) {
+        if (confluenceSpaces.length === 0 && !loadingSpaces) {
+          loadConfluenceSpaces(confluenceConfig, { showToast: false });
+        }
+
+        if (detectedConfluenceFolderId && folderChildren.length === 0 && !loadingFolderChildren) {
+          loadFolderChildren(confluenceConfig, detectedConfluenceFolderId, { showToast: false });
+        }
+      }
+  }, [
+    activeConfigTab,
+    confluenceConfig,
+    confluenceSpaces.length,
+    detectedConfluenceFolderId,
+    folderChildren.length,
+    loadingFolderChildren,
+    loadingSpaces
+  ]);
 
   const handleSlackConfigChange = (field, value) => {
     setSlackConfig(prev => {
@@ -246,11 +407,23 @@ const Settings = () => {
     }
   };
 
-  const loadConfluenceSpaces = async (config = confluenceConfig) => {
+  const loadConfluenceSpaces = async (config = confluenceConfig, options = {}) => {
+    const { force = false, showToast = true } = options;
+    const requestSignature = `${config.url}|${config.email}`;
+
     if (!config.url || !config.email || !config.token) {
       return;
     }
 
+    if (!force && spacesRequestRef.current.inFlight && spacesRequestRef.current.signature === requestSignature) {
+      return;
+    }
+
+    if (!force && spacesRequestRef.current.signature === requestSignature && confluenceSpaces.length > 0) {
+      return;
+    }
+
+    spacesRequestRef.current = { inFlight: true, signature: requestSignature };
     setLoadingSpaces(true);
     try {
       const confluenceService = new ConfluenceService(config);
@@ -260,26 +433,33 @@ const Settings = () => {
         const spaces = spacesResult.data.spaces || [];
         console.log('📋 Loaded spaces:', spaces.length, spaces);
         setConfluenceSpaces(spaces);
-        toast.success({
-          title: 'Spaces Loaded',
-          description: `Found ${spaces.length} Confluence spaces`
-        });
+        if (showToast) {
+          toast.success({
+            title: 'Spaces Loaded',
+            description: `Found ${spaces.length} Confluence spaces`
+          });
+        }
       } else {
         console.error('❌ Failed to load spaces:', spacesResult.error);
         setConfluenceSpaces([]);
-        toast.error({
-          title: 'Failed to Load Spaces',
-          description: spacesResult.error || 'Could not fetch Confluence spaces'
-        });
+        if (showToast) {
+          toast.error({
+            title: 'Failed to Load Spaces',
+            description: spacesResult.error || 'Could not fetch Confluence spaces'
+          });
+        }
       }
     } catch (error) {
       console.warn('Failed to load spaces:', error);
       setConfluenceSpaces([]);
-      toast.error({
-        title: 'Spaces Load Error',
-        description: error.message || 'An error occurred while loading spaces'
-      });
+      if (showToast) {
+        toast.error({
+          title: 'Spaces Load Error',
+          description: error.message || 'An error occurred while loading spaces'
+        });
+      }
     } finally {
+      spacesRequestRef.current = { ...spacesRequestRef.current, inFlight: false };
       setLoadingSpaces(false);
     }
   };
@@ -312,6 +492,9 @@ const Settings = () => {
         if (spacesResult.success) {
           const spaces = spacesResult.data.spaces || [];
           setConfluenceSpaces(spaces);
+          if (extractConfluenceFolderId(confluenceConfig.folderSource || confluenceConfig.folderId || '')) {
+            loadFolderChildren(confluenceConfig, detectedConfluenceFolderId, { force: true, showToast: false });
+          }
           toast.success({
             title: 'Confluence Connection Successful',
             description: `Connected to ${confluenceConfig.url} and loaded ${spaces.length} spaces`
@@ -472,7 +655,7 @@ const Settings = () => {
       </div>
 
       {/* Configuration Tabs */}
-      <Tabs defaultValue="jira" className="space-y-6">
+      <Tabs value={activeConfigTab} onValueChange={setActiveConfigTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="jira" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
@@ -528,20 +711,27 @@ const Settings = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="jira-project">Project Key *</Label>
-                  <Select 
-                    value={jiraConfig.projectKey} 
-                    onValueChange={(value) => handleJiraConfigChange('projectKey', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MP">MP - Marketplace</SelectItem>
-                      <SelectItem value="UP">UP - Core Platform</SelectItem>
-                      <SelectItem value="AIT">AIT - Core AI</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Project Keys *</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {JIRA_PROJECT_OPTIONS.map((project) => {
+                      const isSelected = jiraConfig.projectKeys.includes(project.key);
+
+                      return (
+                        <Button
+                          key={project.key}
+                          type="button"
+                          variant={isSelected ? 'default' : 'outline'}
+                          className="justify-start"
+                          onClick={() => toggleJiraProjectKey(project.key)}
+                        >
+                          {project.key} - {project.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {jiraConfig.projectKeys.length > 0 ? jiraConfig.projectKeys.join(', ') : 'None'}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -685,7 +875,7 @@ const Settings = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => loadConfluenceSpaces()}
+                      onClick={() => loadConfluenceSpaces(confluenceConfig, { force: true })}
                       disabled={!confluenceConfig.url || !confluenceConfig.email || !confluenceConfig.token || loadingSpaces}
                     >
                       {loadingSpaces ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -738,7 +928,44 @@ const Settings = () => {
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="confluence-parent">Parent Page ID (Optional)</Label>
+                  <Label htmlFor="confluence-folder">Folder URL / Folder ID</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="confluence-folder"
+                      placeholder="https://everfit.atlassian.net/wiki/spaces/EV/folder/3499130912"
+                      value={confluenceConfig.folderSource}
+                      onChange={(e) => handleConfluenceConfigChange('folderSource', e.target.value)}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadFolderChildren(confluenceConfig, detectedConfluenceFolderId, { force: true })}
+                      disabled={!canLoadFolderChildren}
+                    >
+                      {loadingFolderChildren ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Load Items'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Paste a Confluence folder URL or folder ID to load direct child items. Detected Folder ID: {detectedConfluenceFolderId || 'None'}
+                  </p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="confluence-parent">Parent Page ID</Label>
+                  <Combobox
+                    options={folderChildren.map(item => ({
+                      value: item.id,
+                      label: `${item.id} — ${item.title} — ${item.type}`,
+                      description: `Status: ${item.status || 'unknown'}`
+                    }))}
+                    value={confluenceConfig.parentPageId}
+                    onValueChange={(value) => handleConfluenceConfigChange('parentPageId', value)}
+                    placeholder={folderChildren.length > 0 ? 'Select direct child item' : 'Load folder items first or enter manually below'}
+                    searchPlaceholder="Search folder items..."
+                    emptyText="No direct child items found"
+                    loading={loadingFolderChildren}
+                    inline
+                  />
                   <Input
                     id="confluence-parent"
                     placeholder="123456789"
@@ -746,7 +973,7 @@ const Settings = () => {
                     onChange={(e) => handleConfluenceConfigChange('parentPageId', e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Leave empty to create pages at the space root level
+                    Dropdown format: `id — title — type`. You can still paste a Parent Page ID manually if needed.
                   </p>
                 </div>
               </div>

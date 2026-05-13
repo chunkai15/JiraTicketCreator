@@ -55,6 +55,16 @@ const WIZARD_STEPS = [
   }
 ];
 
+const normalizeProjectKeys = (config = {}) => {
+  const projectKeys = Array.isArray(config.projectKeys) && config.projectKeys.length > 0
+    ? config.projectKeys
+    : config.projectKey
+      ? [config.projectKey]
+      : [];
+
+  return [...new Set(projectKeys.filter(Boolean).map((key) => key.trim()))];
+};
+
 export function ReleaseWizard() {
   const { toast } = useToast();
   
@@ -67,7 +77,8 @@ export function ReleaseWizard() {
     url: '',
     email: '',
     token: '',
-    projectKey: 'MP'
+    projectKey: 'MP',
+    projectKeys: ['MP', 'PAY']
   });
   const [confluenceConfig, setConfluenceConfig] = useState({
     url: '',
@@ -98,6 +109,11 @@ export function ReleaseWizard() {
   const [lastFetchTime, setLastFetchTime] = useState(null);
   const [isAutoFetched, setIsAutoFetched] = useState(false);
   const [fetchingReleases, setFetchingReleases] = useState(false);
+  const [releaseFetchSummary, setReleaseFetchSummary] = useState({
+    requestedProjectKeys: [],
+    totalReleases: 0,
+    byProject: {}
+  });
   
   // Use refs for persistent tracking across re-renders and component remounts
   const hasAutoFetchedRef = useRef(false);
@@ -152,8 +168,10 @@ export function ReleaseWizard() {
           setConnectionStatus(prev => ({ ...prev, confluence: 'connected' }));
         }
         
+        const savedProjectKeys = normalizeProjectKeys(savedJiraConfig);
+
         // Auto-fetch releases if Jira config exists and not already fetched
-        if (savedJiraConfig && savedJiraConfig.url && savedJiraConfig.token && savedJiraConfig.projectKey && !hasAutoFetchedRef.current) {
+        if (savedJiraConfig && savedJiraConfig.url && savedJiraConfig.token && savedProjectKeys.length > 0 && !hasAutoFetchedRef.current) {
           // Double-check with ref to prevent race conditions
           if (isFetchingRef.current) {
             console.log('🚫 Already fetching releases globally, skipping duplicate');
@@ -180,7 +198,7 @@ export function ReleaseWizard() {
                 description: release.description || '',
                 releaseDate: release.releaseDate,
                 status: release.released ? 'released' : 'unreleased',
-                projectKey: release.projectId || savedJiraConfig.projectKey,
+                projectKey: release.projectKey || savedJiraConfig.projectKey,
                 issueCount: release.issues?.length || 0,
                 bugCount: release.issues?.filter(i => i.fields?.issuetype?.name === 'Bug').length || 0,
                 featureCount: release.issues?.filter(i => i.fields?.issuetype?.name === 'Story' || i.fields?.issuetype?.name === 'Feature').length || 0,
@@ -192,7 +210,20 @@ export function ReleaseWizard() {
               releaseCacheRef.current = transformedReleases; // Store in persistent ref
               setLastFetchTime(Date.now());
               setIsAutoFetched(true);
+              setReleaseFetchSummary({
+                requestedProjectKeys: result.data.requestedProjectKeys || [],
+                totalReleases: transformedReleases.length,
+                byProject: transformedReleases.reduce((acc, release) => {
+                  const projectKey = release.projectKey || 'Unknown';
+                  acc[projectKey] = (acc[projectKey] || 0) + 1;
+                  return acc;
+                }, {})
+              });
               console.log(`✅ Auto-loaded ${transformedReleases.length} releases (cached globally, mount #${mountCountRef.current})`);
+
+              if (result.data.failedProjects?.length > 0) {
+                console.warn('⚠️ Some projects failed during auto-fetch:', result.data.failedProjects);
+              }
             }
           } catch (error) {
             console.error('❌ Auto-fetch releases failed:', error);
@@ -220,7 +251,9 @@ export function ReleaseWizard() {
 
   // Fetch detailed release information including issue status breakdown with debouncing
   const fetchReleaseDetails = useCallback(async (releaseIds) => {
-    if (!jiraConfig.url || !jiraConfig.token || !jiraConfig.projectKey) {
+    const projectKeys = normalizeProjectKeys(jiraConfig);
+
+    if (!jiraConfig.url || !jiraConfig.token || projectKeys.length === 0) {
       return;
     }
 
@@ -250,7 +283,8 @@ export function ReleaseWizard() {
         }
 
         // Build JQL for this release
-        const jql = `project = "${jiraConfig.projectKey}" AND fixVersion = "${release.name}" AND issuetype != Sub-task`;
+        const releaseProjectKey = release.projectKey || jiraConfig.projectKey;
+        const jql = `project = "${releaseProjectKey}" AND fixVersion = "${release.name}" AND issuetype != Sub-task`;
         
         try {
           // Get issue status breakdown
@@ -336,6 +370,7 @@ export function ReleaseWizard() {
       email: config.email ? config.email.substring(0, 5) + '***' : 'missing',
       token: config.token ? 'present' : 'missing',
       projectKey: config.projectKey,
+      projectKeys: config.projectKeys,
       spaceKey: config.spaceKey
     });
     
@@ -395,7 +430,9 @@ export function ReleaseWizard() {
 
   // Fetch releases with enhanced caching and ref-based duplicate prevention
   const fetchReleases = useCallback(async (forceRefresh = false) => {
-    if (!jiraConfig.url || !jiraConfig.token || !jiraConfig.projectKey) {
+    const projectKeys = normalizeProjectKeys(jiraConfig);
+
+    if (!jiraConfig.url || !jiraConfig.token || projectKeys.length === 0) {
       alert('Please configure Jira settings first in the Settings page.');
       return;
     }
@@ -439,7 +476,7 @@ export function ReleaseWizard() {
           description: release.description || '',
           releaseDate: release.releaseDate,
           status: release.released ? 'released' : 'unreleased',
-          projectKey: release.projectId || jiraConfig.projectKey,
+          projectKey: release.projectKey || jiraConfig.projectKey,
           issueCount: release.issues?.length || 0,
           bugCount: release.issues?.filter(i => i.fields?.issuetype?.name === 'Bug').length || 0,
           featureCount: release.issues?.filter(i => i.fields?.issuetype?.name === 'Story' || i.fields?.issuetype?.name === 'Feature').length || 0,
@@ -450,7 +487,30 @@ export function ReleaseWizard() {
         setReleasesCache(transformedReleases);
         releaseCacheRef.current = transformedReleases; // Store in persistent ref
         setLastFetchTime(Date.now());
+        setReleaseFetchSummary({
+          requestedProjectKeys: result.data.requestedProjectKeys || [],
+          totalReleases: transformedReleases.length,
+          byProject: transformedReleases.reduce((acc, release) => {
+            const projectKey = release.projectKey || 'Unknown';
+            acc[projectKey] = (acc[projectKey] || 0) + 1;
+            return acc;
+          }, {})
+        });
         console.log(`✅ Manually fetched ${transformedReleases.length} releases (cached in ref)`);
+
+        toast.success({
+          title: 'Releases Loaded',
+          description: `${transformedReleases.length} release(s) from ${(result.data.requestedProjectKeys || []).join(', ') || 'configured projects'}`,
+          duration: 5000
+        });
+
+        if (result.data.failedProjects?.length > 0) {
+          toast.error({
+            title: 'Some Projects Failed to Load',
+            description: result.data.failedProjects.map((item) => `${item.projectKey}: ${item.error}`).join(' | '),
+            duration: 9000
+          });
+        }
       } else {
         console.error('Failed to fetch releases:', result.error);
         toast.error({
@@ -508,7 +568,7 @@ export function ReleaseWizard() {
           const pageResult = await confluenceService.createReleasePage({
             releaseName: release.name,
             releaseDate: effectiveReleaseDate,
-            projectKey: jiraConfig.projectKey, // Use Jira config project key
+            projectKey: release.projectKey || jiraConfig.projectKey,
             spaceKey: confluenceConfig.spaceKey,
             parentPageId: confluenceConfig.parentPageId
           });
@@ -718,6 +778,7 @@ export function ReleaseWizard() {
           {currentStep === 0 && (
             <SelectReleasesStep
               releases={releases}
+              releaseFetchSummary={releaseFetchSummary}
               selectedReleases={selectedReleases}
               onSelectedReleasesChange={setSelectedReleases}
               onFetchReleases={fetchReleases}
@@ -766,6 +827,7 @@ export function ReleaseWizard() {
 // Select Releases Step Component
 function SelectReleasesStep({ 
   releases, 
+  releaseFetchSummary,
   selectedReleases, 
   onSelectedReleasesChange,
   onFetchReleases,
@@ -822,7 +884,7 @@ function SelectReleasesStep({
               <h4 className="font-medium text-sm">Jira Configuration</h4>
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>URL: {jiraConfig.url || 'Not configured'}</p>
-                <p>Project: {jiraConfig.projectKey || 'Not configured'}</p>
+                <p>Projects: {normalizeProjectKeys(jiraConfig).join(', ') || 'Not configured'}</p>
                 <p>Email: {jiraConfig.email ? jiraConfig.email.replace(/(.{3}).*(@.*)/, '$1***$2') : 'Not configured'}</p>
               </div>
             </div>
@@ -917,6 +979,19 @@ function SelectReleasesStep({
             </Badge>
           </div>
 
+          {releaseFetchSummary.totalReleases > 0 && (
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+              <p>
+                Loaded {releaseFetchSummary.totalReleases} release(s) from {releaseFetchSummary.requestedProjectKeys.join(', ')}
+              </p>
+              <p>
+                {Object.entries(releaseFetchSummary.byProject)
+                  .map(([projectKey, count]) => `${projectKey}: ${count}`)
+                  .join(' • ')}
+              </p>
+            </div>
+          )}
+
           {/* Release List */}
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -1001,6 +1076,10 @@ function ReleaseCard({ release, isSelected, onToggle }) {
             </div>
             
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <GitBranch className="h-3 w-3" />
+                <span>{release.projectKey || 'Unknown project'}</span>
+              </div>
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 <span className="truncate">{release.releaseDate || 'TBD'}</span>
@@ -1189,7 +1268,7 @@ function PreviewStep({
                         <div>
                           <h4 className="font-medium">{release.name}</h4>
                           <p className="text-sm text-muted-foreground">
-                            Release Date: {displayDate}
+                            Release Date: {displayDate} • Project: {release.projectKey || 'Unknown'}
                             {customDate && <span className="text-primary ml-1">(Custom)</span>}
                           </p>
                         </div>
@@ -1369,9 +1448,9 @@ function CreatePagesStep({
                     <div className="flex items-center justify-between">
                       <div>
                         <h4 className="font-medium">{release.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Release Date: {formattedDate} • Project: {jiraConfig.projectKey}
-                        </p>
+                          <p className="text-sm text-muted-foreground">
+                            Release Date: {formattedDate} • Project: {release.projectKey || jiraConfig.projectKey}
+                          </p>
                       </div>
                       <Badge variant="outline">Ready</Badge>
                     </div>

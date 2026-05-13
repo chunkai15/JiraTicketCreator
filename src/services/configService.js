@@ -4,6 +4,21 @@ import CryptoJS from 'crypto-js';
 const CONFIG_KEY = 'jira_tool_config';
 const ENCRYPTION_KEY = 'jira_tool_secret_key_2024'; // In production, this should be from env
 
+const normalizeProjectKeys = (config = {}) => {
+  const rawProjectKeys = Array.isArray(config.projectKeys)
+    ? config.projectKeys
+    : typeof config.projectKey === 'string' && config.projectKey.trim()
+      ? [config.projectKey.trim()]
+      : [];
+
+  const projectKeys = [...new Set(rawProjectKeys.filter(Boolean).map(key => key.trim()))];
+
+  return {
+    projectKeys,
+    projectKey: projectKeys[0] || ''
+  };
+};
+
 const ConfigService = {
   // Encrypt sensitive data
   encrypt(text) {
@@ -29,6 +44,7 @@ const ConfigService = {
   // Save Jira configuration
   saveJiraConfig(config) {
     try {
+      const normalizedProjects = normalizeProjectKeys(config);
       const configToSave = {
         ...config,
         // Encrypt sensitive fields
@@ -36,7 +52,7 @@ const ConfigService = {
         email: config.email ? this.encrypt(config.email) : '',
         // Keep non-sensitive fields as plain text
         url: config.url || '',
-        projectKey: config.projectKey || '',
+        ...normalizedProjects,
         // Add metadata
         savedAt: new Date().toISOString(),
         version: '1.0'
@@ -60,6 +76,7 @@ const ConfigService = {
       }
 
       const config = JSON.parse(savedConfig);
+      const normalizedProjects = normalizeProjectKeys(config);
       
       // Decrypt sensitive fields
       return {
@@ -67,7 +84,7 @@ const ConfigService = {
         token: config.token ? this.decrypt(config.token) : '',
         email: config.email ? this.decrypt(config.email) : '',
         url: config.url || '',
-        projectKey: config.projectKey || ''
+        ...normalizedProjects
       };
     } catch (error) {
       console.error('Failed to load Jira configuration:', error);
@@ -100,6 +117,7 @@ const ConfigService = {
   // Validate configuration
   validateJiraConfig(config) {
     const errors = [];
+    const { projectKeys } = normalizeProjectKeys(config);
 
     if (!config.url || !config.url.trim()) {
       errors.push('Jira URL is required');
@@ -119,8 +137,8 @@ const ConfigService = {
       errors.push('API Token seems too short');
     }
 
-    if (!config.projectKey || !config.projectKey.trim()) {
-      errors.push('Project Key is required');
+    if (projectKeys.length === 0) {
+      errors.push('At least one Project Key is required');
     }
 
     return {
@@ -140,6 +158,7 @@ const ConfigService = {
       url: config.url,
       email: config.email ? config.email.replace(/(.{2}).*(@.*)/, '$1***$2') : '',
       projectKey: config.projectKey,
+      projectKeys: config.projectKeys || (config.projectKey ? [config.projectKey] : []),
       savedAt: config.savedAt,
       hasToken: !!config.token
     };
@@ -156,6 +175,8 @@ const ConfigService = {
         // Keep non-sensitive fields as plain text
         url: config.url || '',
         spaceKey: config.spaceKey || '',
+        folderSource: config.folderSource || '',
+        folderId: config.folderId || '',
         parentPageId: config.parentPageId || '',
         // Add metadata
         savedAt: new Date().toISOString(),
@@ -188,6 +209,8 @@ const ConfigService = {
         email: config.email ? this.decrypt(config.email) : '',
         url: config.url || '',
         spaceKey: config.spaceKey || '',
+        folderSource: config.folderSource || '',
+        folderId: config.folderId || '',
         parentPageId: config.parentPageId || ''
       };
     } catch (error) {

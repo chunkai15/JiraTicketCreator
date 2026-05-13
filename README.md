@@ -49,7 +49,7 @@ To connect with your Jira instance, you need to provide the following informatio
 | **Jira URL** | Your Jira instance URL | `https://your-company.atlassian.net` | ✅ Yes |
 | **Email** | Your Atlassian account email | `your-email@company.com` | ✅ Yes |
 | **API Token** | Personal API token for authentication | `ATATT3xFfGF0...` (72+ characters) | ✅ Yes |
-| **Project Key** | Target project identifier | `PROJ` or `DEV` | ✅ Yes |
+| **Project Key(s)** | One or more target project identifiers | `MP`, `PAY` | ✅ Yes |
 | **Issue Type** | Default ticket type | `Bug`, `Task`, `Story` | ✅ Yes |
 
 #### Getting Your API Token
@@ -87,6 +87,11 @@ Feature: Add dark mode toggle
 - **Edit Inline**: Modify any field directly in the preview
 - **Bulk Actions**: Create all tickets at once or individually
 - **Progress Tracking**: Real-time creation status
+
+### Release Flow Notes
+- **Multi-project release fetch**: Settings now supports selecting multiple Jira project keys at once.
+- **PAY included by default**: The default Jira configuration includes `MP` and `PAY`.
+- **Project-aware checklist generation**: Each fetched release keeps its source project so Confluence release pages use the correct JQL per release.
 
 ## ⌨️ Keyboard Shortcuts
 
